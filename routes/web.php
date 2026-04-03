@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\KostAppController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -18,3 +19,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+Route::get('/internal/run-overdue-check/{token}', function (string $token) {
+    abort_unless(hash_equals((string) env('CRON_TOKEN'), $token), 403);
+
+    Artisan::call('tenants:check-overdue');
+
+    return nl2br(e(Artisan::output()));
+});
