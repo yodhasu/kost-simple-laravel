@@ -1,0 +1,23 @@
+---
+deployment:
+  tasks:
+    - export APPPATH=/home/tbkd2629/kost-app
+    - export PUBLICPATH=/home/tbkd2629/public_html
+    - /bin/mkdir -p "$APPPATH"
+    - /bin/mkdir -p "$PUBLICPATH"
+    - /bin/mkdir -p "$APPPATH/storage/app/public"
+    - /bin/mkdir -p "$APPPATH/storage/framework/cache/data"
+    - /bin/mkdir -p "$APPPATH/storage/framework/sessions"
+    - /bin/mkdir -p "$APPPATH/storage/framework/views"
+    - /bin/mkdir -p "$APPPATH/storage/logs"
+    - /bin/rm -rf "$APPPATH/app" "$APPPATH/bootstrap" "$APPPATH/config" "$APPPATH/database" "$APPPATH/public" "$APPPATH/resources" "$APPPATH/routes"
+    - /bin/cp -R app bootstrap config database public resources routes "$APPPATH"
+    - /bin/cp artisan composer.json composer.lock package.json package-lock.json vite.config.ts "$APPPATH"
+    - /bin/cp .env.example "$APPPATH/.env.example"
+    - /bin/bash -lc 'cd "$APPPATH" && if command -v composer >/dev/null 2>&1; then composer install --no-dev --optimize-autoloader; elif [ -x /usr/local/bin/composer ]; then /usr/local/bin/composer install --no-dev --optimize-autoloader; else echo "Composer is not available on this server."; exit 1; fi'
+    - /bin/bash -lc 'cd "$APPPATH" && if command -v npm >/dev/null 2>&1; then npm ci && npm run build; elif [ -f "$APPPATH/public/build/manifest.json" ]; then echo "Using committed frontend assets."; else echo "npm is not available and public/build is missing. Build assets before deploy or commit public/build."; exit 1; fi'
+    - /bin/rm -rf "$PUBLICPATH/build" "$PUBLICPATH/storage"
+    - /bin/cp -R "$APPPATH/public/." "$PUBLICPATH"
+    - /bin/ln -sfn "$APPPATH/storage/app/public" "$PUBLICPATH/storage"
+    - /bin/bash -lc 'php -r '\''$file = getenv("PUBLICPATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__.'\''/../vendor/autoload.php'\''", "__DIR__.'\''/../kost-app/vendor/autoload.php'\''", $contents); $contents = str_replace("__DIR__.'\''/../bootstrap/app.php'\''", "__DIR__.'\''/../kost-app/bootstrap/app.php'\''", $contents); file_put_contents($file, $contents);'\'''
+    - /bin/bash -lc 'cd "$APPPATH" && php artisan migrate --force && php artisan optimize:clear && php artisan optimize'
