@@ -1,0 +1,5 @@
+id=local-tester
+name=Kost Local Tester
+email=tester@kost.local
+password=password123
+role=owner
