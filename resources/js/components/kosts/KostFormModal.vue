@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,10 +83,19 @@ watch(
     { immediate: true },
 );
 
-const submit = () => {
+const confirmSaveOpen = ref(false);
+const confirmDeleteOpen = ref(false);
+
+const requestSave = () => {
     if (props.viewOnly || errorMessage.value) {
         return;
     }
+
+    confirmSaveOpen.value = true;
+};
+
+const executeSave = () => {
+    confirmSaveOpen.value = false;
 
     emit('save', {
         region_id: form.region_id,
@@ -94,6 +104,15 @@ const submit = () => {
         total_units: form.total_units,
         notes: form.notes.trim(),
     });
+};
+
+const requestDelete = () => {
+    confirmDeleteOpen.value = true;
+};
+
+const executeDelete = () => {
+    confirmDeleteOpen.value = false;
+    emit('delete');
 };
 </script>
 
@@ -105,7 +124,7 @@ const submit = () => {
         max-width-class="sm:max-w-2xl"
         @update:open="emit('update:open', $event)"
     >
-        <form id="kost-form-modal" class="space-y-5" @submit.prevent="submit">
+        <form id="kost-form-modal" class="space-y-5" @submit.prevent="requestSave">
             <div v-if="isOwner || viewer.role === 'it'" class="grid gap-2">
                 <Label class="text-slate-900">Region <span class="text-rose-500">*</span></Label>
                 <select
@@ -171,7 +190,7 @@ const submit = () => {
             </div>
 
             <div v-if="isEditMode && !viewOnly" class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                <Button type="button" variant="outline" class="border-rose-200 text-rose-700" @click="emit('delete')">
+                <Button type="button" variant="outline" class="border-rose-200 text-rose-700" @click="requestDelete">
                     Hapus Kost
                 </Button>
                 <p class="mt-3 text-sm text-slate-500">
@@ -198,4 +217,24 @@ const submit = () => {
             </template>
         </template>
     </BaseModal>
+
+    <ConfirmModal
+        :open="confirmSaveOpen"
+        :title="isEditMode ? 'Simpan Perubahan Kost' : 'Tambah Kost Baru'"
+        :description="isEditMode ? `Simpan perubahan untuk kost '${form.name.trim()}'?` : `Tambah kost baru '${form.name.trim()}'?`"
+        confirm-label="Ya, Simpan"
+        variant="info"
+        @update:open="confirmSaveOpen = $event"
+        @confirm="executeSave"
+    />
+
+    <ConfirmModal
+        :open="confirmDeleteOpen"
+        title="Hapus Kost"
+        :description="`Yakin ingin menghapus kost '${form.name.trim()}'? Tindakan ini tidak dapat dibatalkan.`"
+        confirm-label="Ya, Hapus"
+        variant="danger"
+        @update:open="confirmDeleteOpen = $event"
+        @confirm="executeDelete"
+    />
 </template>

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { CalendarRange, Download, MapPinned } from 'lucide-vue-next';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import { Input } from '@/components/ui/input';
 import type { RegionOption, Viewer } from '@/types/kost';
 
@@ -42,13 +43,21 @@ const canExport = computed(
         !dateRangeError.value,
 );
 
-const handleExport = () => {
+const confirmExportOpen = ref(false);
+
+const requestExport = () => {
     exportError.value = '';
     submitted.value = true;
 
     if (!canExport.value) {
         return;
     }
+
+    confirmExportOpen.value = true;
+};
+
+const executeExport = () => {
+    confirmExportOpen.value = false;
 
     const params = new URLSearchParams({
         start_date: form.value.startDate,
@@ -74,10 +83,11 @@ const handleExport = () => {
         <!-- Desktop hero (hidden on mobile) -->
         <div class="hidden rounded-4xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 lg:block">
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">Export Center</p>
-            <h2 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">Siapkan unduhan Excel multi-sheet</h2>
+            <h2 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">Siapkan unduhan Excel laporan monetisasi</h2>
             <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                 Pilih rentang tanggal, region, dan jenis data yang ingin dibawa keluar dari sistem.
-                Semua pilihan akan digabung ke satu file Excel multi-sheet agar lebih mudah dibaca dan dibagikan.
+                Untuk pilihan Laporan Keuangan, sistem akan membuat workbook manajemen yang berisi ringkasan kolektibilitas,
+                laba bersih, piutang penyewa, detail pembayaran, detail pengeluaran, dan rekonsiliasi.
             </p>
         </div>
 
@@ -144,14 +154,14 @@ const handleExport = () => {
             <!-- Actions -->
             <div class="mt-3 md:mt-5 md:flex md:items-center md:justify-between md:gap-2.5">
                 <p class="hidden text-sm leading-6 text-slate-500 md:block">
-                    Sheet tambahan `Peta Kontrol Region & Kost` menampilkan hubungan region, kost, dan admin dalam satu file.
+                    Laporan Keuangan tidak lagi berupa dump database, tetapi workbook monetisasi yang lebih siap dibaca owner dan admin.
                 </p>
                 <button
                     type="button"
                     class="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white md:w-auto md:min-w-40 md:rounded-2xl md:px-5 md:py-2.5 md:text-base"
                     :class="canExport ? 'bg-teal-600' : 'bg-slate-300'"
                     :disabled="!canExport"
-                    @click="handleExport"
+                    @click="requestExport"
                 >
                     <Download class="size-3.5 md:size-4" />
                     Unduh Data
@@ -159,8 +169,19 @@ const handleExport = () => {
             </div>
             <p v-if="exportError" class="mt-2 text-xs text-rose-600 md:mt-2.5 md:text-base">{{ exportError }}</p>
             <p v-if="submitted" class="mt-2 text-xs font-medium text-emerald-700 md:mt-2.5 md:text-base">
-                Export dikirim ke endpoint Laravel. Jika data valid, browser akan langsung mengunduh satu file `.xlsx`.
+                Export dikirim ke endpoint Laravel. Jika data valid, browser akan langsung mengunduh satu file `.xlsx`
+                berisi sheet sesuai pilihan Anda.
             </p>
         </article>
     </section>
+
+    <ConfirmModal
+        :open="confirmExportOpen"
+        title="Unduh Data Export"
+        :description="`Unduh file Excel untuk periode ${form.startDate} s/d ${form.endDate}?`"
+        confirm-label="Ya, Unduh"
+        variant="info"
+        @update:open="confirmExportOpen = $event"
+        @confirm="executeExport"
+    />
 </template>

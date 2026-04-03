@@ -1,0 +1,1 @@
+import{A as e,C as t,E as n,H as r,bt as i,et as a,h as o}from"./dist-THAXVl06.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=e({__name:`InputError`,props:{message:{}},setup(e){return(c,l)=>a((r(),n(`div`,null,[t(`p`,s,i(e.message),1)],512)),[[o,e.message]])}});export{c as t};

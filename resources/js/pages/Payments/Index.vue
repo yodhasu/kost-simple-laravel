@@ -187,7 +187,7 @@ const handleTenantSave = async (payload: {
     trash_fee: number;
     security_fee: number;
     admin_fee: number;
-    status: 'aktif' | 'dp';
+    status: 'LUNAS' | 'ON HOLD' | 'DP';
     dp_amount: number;
     dp_due_date: string;
 }) => {

@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Services\DashboardPayloadService;
 use App\Services\RegionScopeService;
+use App\Services\TenantBillingService;
 use App\Services\TenantsService;
 use App\Services\UserProfileService;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class KostAppController extends Controller
     public function __construct(
         private readonly DashboardPayloadService $dashboardPayloadService,
         private readonly RegionScopeService $regionScopeService,
+        private readonly TenantBillingService $tenantBillingService,
         private readonly TenantsService $tenantsService,
         private readonly UserProfileService $userProfileService,
     ) {
@@ -67,7 +69,15 @@ class KostAppController extends Controller
                 'adminFee' => (int) ($tenant->admin_fee ?? 0),
                 'status' => $tenant->status,
                 'dpAmount' => $tenant->dp_amount,
+                'dpPaidAmount' => (int) ($tenant->dp_paid_amount ?? $tenant->dp_amount ?? 0),
+                'dpRemainingAmount' => (int) ($tenant->dp_remaining_amount ?? 0),
                 'dpDueDate' => $tenant->dp_due_date,
+                'isDp' => (bool) ($tenant->is_dp ?? false),
+                'prepaidBalance' => (int) ($tenant->prepaid_balance ?? 0),
+                'paidUntil' => $tenant->paid_until,
+                'nextBillingDate' => $tenant->next_billing_date,
+                'currentDueAmount' => (int) ($tenant->current_due_amount ?? 0),
+                'totalOutstandingAmount' => (int) ($tenant->total_outstanding_amount ?? 0),
                 'isActive' => (bool) $tenant->is_active,
             ])->all(),
             'pagination' => [
@@ -241,8 +251,7 @@ class KostAppController extends Controller
 
         return Kost::query()
             ->withCount(['tenants as occupiedUnits' => fn ($query) => $query
-                ->where('is_active', true)
-                ->whereIn('status', ['aktif', 'dp'])])
+                ->where('is_active', true)])
             ->when($user && ! in_array($role, ['owner', 'it'], true), function ($query) use ($assignedRegionIds): void {
                 if ($assignedRegionIds === []) {
                     $query->whereRaw('1 = 0');
@@ -267,7 +276,7 @@ class KostAppController extends Controller
     }
 
     /**
-     * @return array<int, array{id: string, kostId: string, name: string, status: string, rentPrice: int, trashFee: int, securityFee: int, adminFee: int, dpAmount: ?int, dpDueDate: ?string, isActive: bool}>
+     * @return array<int, array{id: string, kostId: string, name: string, status: string, rentPrice: int, trashFee: int, securityFee: int, adminFee: int, dpAmount: ?int, dpDueDate: ?string, isDp: bool, prepaidBalance: int, paidUntil: ?string, currentDueAmount: int, isActive: bool}>
      */
     private function paymentTenants(Request $request): array
     {
@@ -289,15 +298,14 @@ class KostAppController extends Controller
             ->latest('created_at')
             ->get()
             ->map(function (Tenant $tenant): array {
-                $dpTransaction = Transaction::query()
-                    ->where('tenant_id', $tenant->id)
-                    ->where('category', 'dp')
-                    ->where('is_frozen', true)
-                    ->latest('transaction_date')
-                    ->latest('created_at')
-                    ->first();
+                if (! $this->tenantBillingService->isDp($tenant) && ! $this->tenantBillingService->isOnHold($tenant) && $tenant->is_active) {
+                    $tenant = $this->tenantBillingService->refreshStatus($tenant);
+                }
 
-                preg_match('/due_date:(\d{4}-\d{2}-\d{2})/', (string) $dpTransaction?->description, $matches);
+                $isDp = $this->tenantBillingService->isDp($tenant);
+                $dpAmount = $this->tenantBillingService->dpBaseAmount($tenant);
+                $dpPaidAmount = $this->tenantBillingService->dpPaidTotal($tenant);
+                $dpRemainingAmount = $this->tenantBillingService->dpRemainingAmount($tenant);
 
                 return [
                     'id' => $tenant->id,
@@ -308,8 +316,16 @@ class KostAppController extends Controller
                     'trashFee' => (int) ($tenant->trash_fee ?? 0),
                     'securityFee' => (int) ($tenant->security_fee ?? 0),
                     'adminFee' => (int) ($tenant->admin_fee ?? 0),
-                    'dpAmount' => $dpTransaction?->amount ? (int) $dpTransaction->amount : null,
-                    'dpDueDate' => $matches[1] ?? null,
+                    'dpAmount' => $dpAmount > 0 ? $dpAmount : null,
+                    'dpPaidAmount' => $dpPaidAmount,
+                    'dpRemainingAmount' => $dpRemainingAmount,
+                    'dpDueDate' => $tenant->dp_due_date?->toDateString(),
+                    'isDp' => $isDp,
+                    'prepaidBalance' => (int) ($tenant->prepaid_balance ?? 0),
+                    'paidUntil' => $tenant->paid_until?->toDateString(),
+                    'nextBillingDate' => $this->tenantBillingService->nextBillingDate($tenant)?->toDateString(),
+                    'currentDueAmount' => $this->tenantBillingService->currentDueAmount($tenant),
+                    'totalOutstandingAmount' => $this->tenantBillingService->totalOutstandingAmount($tenant),
                     'isActive' => (bool) $tenant->is_active,
                 ];
             })

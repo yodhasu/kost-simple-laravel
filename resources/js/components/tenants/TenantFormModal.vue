@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type TenantStatus = 'aktif' | 'dp';
+type TenantStatus = 'LUNAS' | 'ON HOLD' | 'DP';
 
 export type TenantFormKostOption = {
     id: string;
@@ -29,7 +30,15 @@ export type EditableTenant = {
     adminFee: number;
     status: TenantStatus;
     dpAmount: number | null;
+    dpPaidAmount?: number;
+    dpRemainingAmount?: number;
     dpDueDate: string | null;
+    isDp?: boolean;
+    prepaidBalance?: number;
+    paidUntil?: string | null;
+    nextBillingDate?: string | null;
+    currentDueAmount?: number;
+    totalOutstandingAmount?: number;
     isActive: boolean;
 };
 
@@ -71,7 +80,7 @@ const form = reactive<TenantFormPayload>({
     trash_fee: 0,
     security_fee: 0,
     admin_fee: 0,
-    status: 'aktif',
+    status: 'LUNAS',
     dp_amount: 0,
     dp_due_date: '',
 });
@@ -79,6 +88,7 @@ const form = reactive<TenantFormPayload>({
 const isEdit = computed(() => Boolean(props.tenant));
 const selectedKost = computed(() => props.kostOptions.find((kost) => kost.id === form.kost_id) ?? null);
 const canEditKost = computed(() => isEdit.value || !props.fixedKostId);
+const maxDpAmount = computed(() => Math.max(0, Number(form.rent_price || 0) - 1));
 
 const effectiveOccupiedUnits = computed(() => {
     if (!selectedKost.value) {
@@ -91,7 +101,7 @@ const effectiveOccupiedUnits = computed(() => {
         props.tenant &&
         props.tenant.kostId === selectedKost.value.id &&
         props.tenant.isActive &&
-        ['aktif', 'dp'].includes(props.tenant.status)
+        ['LUNAS', 'ON HOLD', 'DP'].includes(props.tenant.status)
     ) {
         occupiedUnits = Math.max(0, occupiedUnits - 1);
     }
@@ -104,7 +114,7 @@ const isCapacityFull = computed(() => {
         return false;
     }
 
-    if (!['aktif', 'dp'].includes(form.status)) {
+    if (!['LUNAS', 'ON HOLD', 'DP'].includes(form.status)) {
         return false;
     }
 
@@ -152,11 +162,15 @@ const globalError = computed(() => {
         return 'Kost sudah penuh. Silakan pilih kost lain.';
     }
 
-    if (form.status === 'dp' && form.dp_amount <= 0) {
+    if (form.status === 'DP' && form.dp_amount <= 0) {
         return 'Nominal DP wajib diisi untuk status DP.';
     }
 
-    if (form.status === 'dp' && !form.dp_due_date) {
+    if (form.status === 'DP' && form.dp_amount >= Number(form.rent_price || 0)) {
+        return 'Nominal DP harus lebih kecil dari biaya sewa bulanan.';
+    }
+
+    if (form.status === 'DP' && !form.dp_due_date) {
         return 'Batas pelunasan wajib diisi untuk status DP.';
     }
 
@@ -172,7 +186,7 @@ const resetForm = () => {
     form.trash_fee = 0;
     form.security_fee = 0;
     form.admin_fee = 0;
-    form.status = 'aktif';
+    form.status = 'LUNAS';
     form.dp_amount = 0;
     form.dp_due_date = '';
 
@@ -188,7 +202,7 @@ const resetForm = () => {
     form.trash_fee = props.tenant.trashFee ?? 0;
     form.security_fee = props.tenant.securityFee ?? 0;
     form.admin_fee = props.tenant.adminFee ?? 0;
-    form.status = props.tenant.status;
+    form.status = props.tenant.status === 'DP' || props.tenant.status === 'ON HOLD' ? props.tenant.status : 'LUNAS';
     form.dp_amount = props.tenant.dpAmount ?? 0;
     form.dp_due_date = props.tenant.dpDueDate ?? '';
 };
@@ -206,17 +220,25 @@ watch(
 watch(
     () => form.status,
     (status) => {
-        if (status === 'aktif') {
+        if (status !== 'DP') {
             form.dp_amount = 0;
             form.dp_due_date = '';
         }
     },
 );
 
-const submit = () => {
+const confirmSaveOpen = ref(false);
+
+const requestSave = () => {
     if (globalError.value) {
         return;
     }
+
+    confirmSaveOpen.value = true;
+};
+
+const executeSave = () => {
+    confirmSaveOpen.value = false;
 
     emit('save', {
         kost_id: form.kost_id,
@@ -242,7 +264,7 @@ const submit = () => {
         max-width-class="sm:max-w-5xl"
         @update:open="emit('update:open', $event)"
     >
-        <form id="tenant-form-modal" class="space-y-6" @submit.prevent="submit">
+        <form id="tenant-form-modal" class="space-y-6" @submit.prevent="requestSave">
             <div class="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
                 <div class="space-y-5">
                     <div class="flex items-center gap-3">
@@ -322,12 +344,13 @@ const submit = () => {
                                 v-model="form.status"
                                 class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900"
                             >
-                                <option value="aktif" class="text-slate-900">Aktif</option>
-                                <option value="dp" class="text-slate-900">DP</option>
+                                <option value="LUNAS" class="text-slate-900">LUNAS</option>
+                                <option value="ON HOLD" class="text-slate-900">ON HOLD</option>
+                                <option value="DP" class="text-slate-900">DP</option>
                             </select>
                         </div>
 
-                        <div v-if="form.status === 'dp'" class="grid gap-2">
+                        <div v-if="form.status === 'DP'" class="grid gap-2">
                             <Label for="tenant-dp-amount" class="text-slate-900">Nominal DP</Label>
                             <div class="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white">
                                 <span class="px-4 text-sm text-slate-500">Rp</span>
@@ -336,13 +359,17 @@ const submit = () => {
                                     v-model.number="form.dp_amount"
                                     type="number"
                                     min="0"
+                                    :max="maxDpAmount"
                                     class="w-full bg-transparent px-0 py-2.5 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                                     placeholder="0"
                                 />
                             </div>
+                            <p class="text-sm text-slate-500">
+                                Maksimal Rp{{ maxDpAmount.toLocaleString('id-ID') }}
+                            </p>
                         </div>
 
-                        <div v-if="form.status === 'dp'" class="grid gap-2">
+                        <div v-if="form.status === 'DP'" class="grid gap-2">
                             <Label for="tenant-dp-due-date" class="text-slate-900">Batas Pelunasan</Label>
                             <Input
                                 id="tenant-dp-due-date"
@@ -441,4 +468,14 @@ const submit = () => {
             </Button>
         </template>
     </BaseModal>
+
+    <ConfirmModal
+        :open="confirmSaveOpen"
+        :title="isEdit ? 'Simpan Perubahan Penyewa' : 'Tambah Penyewa Baru'"
+        :description="isEdit ? `Simpan perubahan data untuk '${form.name.trim()}'?` : `Tambah penyewa baru '${form.name.trim()}'?`"
+        confirm-label="Ya, Simpan"
+        variant="info"
+        @update:open="confirmSaveOpen = $event"
+        @confirm="executeSave"
+    />
 </template>

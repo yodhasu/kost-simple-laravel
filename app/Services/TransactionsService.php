@@ -11,6 +11,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TransactionsService
 {
+    public function __construct(
+        private readonly TenantBillingService $tenantBillingService,
+    ) {
+    }
+
     public function createPayment(array $data): Transaction
     {
         return DB::transaction(function () use ($data): Transaction {
@@ -26,9 +31,71 @@ class TransactionsService
             }
 
             $kost = Kost::query()->find($data['kost_id']);
-            $description = $tenant->status === 'dp'
-                ? 'Pelunasan DP dari '.$tenant->name
-                : 'Pembayaran sewa dari '.$tenant->name;
+            if ($tenant->status === TenantBillingService::STATUS_ON_HOLD) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Tenant dengan status ON HOLD tidak dapat menerima pembayaran reguler.',
+                ], Response::HTTP_BAD_REQUEST));
+            }
+
+            if ($this->tenantBillingService->isDp($tenant)) {
+                $dpTransaction = Transaction::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->where('category', 'dp')
+                    ->latest('transaction_date')
+                    ->latest('created_at')
+                    ->first();
+
+                $remainingAmount = $this->tenantBillingService->dpRemainingAmount($tenant);
+
+                if ($remainingAmount <= 0) {
+                    throw new HttpResponseException(response()->json([
+                        'message' => 'Pelunasan DP tenant ini sudah terpenuhi.',
+                    ], Response::HTTP_BAD_REQUEST));
+                }
+
+                $appliedAmount = min((int) $data['amount'], $remainingAmount);
+
+                $rentTransaction = Transaction::query()->create([
+                    'kost_id' => $data['kost_id'],
+                    'tenant_id' => $data['tenant_id'],
+                    'financial_class' => 'REVENUE',
+                    'category' => 'rent',
+                    'amount' => $appliedAmount,
+                    'transaction_date' => $data['transaction_date'],
+                    'description' => 'Pelunasan DP dari '.$tenant->name,
+                    'region_id' => $kost?->region_id,
+                    'is_frozen' => false,
+                    'reference_id' => $dpTransaction?->id,
+                ]);
+
+                $remainingAfterPayment = max(0, $remainingAmount - $appliedAmount);
+
+                if ($remainingAfterPayment === 0 && $dpTransaction) {
+                    $dpTransaction->fill([
+                        'is_frozen' => false,
+                        'financial_class' => 'REVENUE',
+                        'reference_id' => $rentTransaction->id,
+                    ])->save();
+
+                    $tenant->status = TenantBillingService::STATUS_LUNAS;
+                    $tenant->paid_until = $tenant->start_date?->toDateString();
+                    $tenant->prepaid_balance = 0;
+                } else {
+                    $tenant->status = $this->tenantBillingService->resolveDpStatus($tenant, $data['transaction_date']);
+                }
+
+                $tenant->save();
+
+                return $rentTransaction->fresh();
+            }
+
+            $tenantBeforePayment = $tenant->replicate();
+            $tenantBeforePayment->id = $tenant->id;
+            $tenantBeforePayment->exists = $tenant->exists;
+            $tenantBeforePayment->setRawAttributes($tenant->getAttributes(), true);
+
+            $tenant = $this->tenantBillingService->settlePayment($tenant, (int) $data['amount'], $data['transaction_date']);
+            $tenant->save();
 
             $rentTransaction = Transaction::query()->create([
                 'kost_id' => $data['kost_id'],
@@ -37,28 +104,15 @@ class TransactionsService
                 'category' => 'rent',
                 'amount' => $data['amount'],
                 'transaction_date' => $data['transaction_date'],
-                'description' => $description,
+                'description' => $this->tenantBillingService->describeRegularPayment(
+                    $tenantBeforePayment,
+                    $tenant,
+                    (int) $data['amount'],
+                    $data['transaction_date'],
+                ),
                 'region_id' => $kost?->region_id,
                 'is_frozen' => false,
             ]);
-
-            if ($tenant->status === 'dp') {
-                $dpTransaction = Transaction::query()
-                    ->where('tenant_id', $tenant->id)
-                    ->where('category', 'dp')
-                    ->where('is_frozen', true)
-                    ->latest('transaction_date')
-                    ->latest('created_at')
-                    ->first();
-
-                if ($dpTransaction) {
-                    $dpTransaction->fill([
-                        'is_frozen' => false,
-                        'financial_class' => 'REVENUE',
-                        'reference_id' => $rentTransaction->id,
-                    ])->save();
-                }
-            }
 
             $extraFees = (int) ($tenant->trash_fee ?? 0)
                 + (int) ($tenant->security_fee ?? 0)
@@ -77,11 +131,6 @@ class TransactionsService
                     'is_frozen' => false,
                     'reference_id' => $rentTransaction->id,
                 ]);
-            }
-
-            if (in_array($tenant->status, ['telat', 'dp'], true)) {
-                $tenant->status = 'aktif';
-                $tenant->save();
             }
 
             return $rentTransaction->fresh();

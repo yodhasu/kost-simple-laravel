@@ -27,7 +27,15 @@ type Tenant = {
     adminFee: number;
     status: string;
     dpAmount: number | null;
+    dpPaidAmount?: number;
+    dpRemainingAmount?: number;
     dpDueDate: string | null;
+    isDp: boolean;
+    prepaidBalance: number;
+    paidUntil: string | null;
+    nextBillingDate?: string | null;
+    currentDueAmount: number;
+    totalOutstandingAmount?: number;
     isActive: boolean;
 };
 
@@ -107,12 +115,17 @@ const formatDate = (value: string) =>
 const statusTone = (value: string) => {
     switch (value) {
         case 'aktif':
+        case 'LUNAS':
             return 'bg-emerald-100 text-emerald-700';
-        case 'dp':
+        case 'DP':
             return 'bg-amber-100 text-amber-700';
-        case 'telat':
+        case 'BELUM LUNAS':
             return 'bg-rose-100 text-rose-700';
-        case 'renovasi':
+        case 'JATUH TEMPO':
+            return 'bg-orange-100 text-orange-800';
+        case 'TELAT BAYAR':
+            return 'bg-rose-100 text-rose-700';
+        case 'ON HOLD':
             return 'bg-sky-100 text-sky-700';
         default:
             return 'bg-slate-100 text-slate-600';
@@ -163,9 +176,17 @@ const openEditModal = (tenant: Tenant) => {
         trashFee: tenant.trashFee,
         securityFee: tenant.securityFee,
         adminFee: tenant.adminFee,
-        status: tenant.status === 'dp' ? 'dp' : 'aktif',
+        status: tenant.isDp ? 'DP' : tenant.status === 'ON HOLD' ? 'ON HOLD' : 'LUNAS',
         dpAmount: tenant.dpAmount,
+        dpPaidAmount: tenant.dpPaidAmount,
+        dpRemainingAmount: tenant.dpRemainingAmount,
         dpDueDate: tenant.dpDueDate,
+        isDp: tenant.isDp,
+        prepaidBalance: tenant.prepaidBalance,
+        paidUntil: tenant.paidUntil,
+        nextBillingDate: tenant.nextBillingDate,
+        currentDueAmount: tenant.currentDueAmount,
+        totalOutstandingAmount: tenant.totalOutstandingAmount,
         isActive: tenant.isActive,
     };
     tenantModalOpen.value = true;
@@ -344,10 +365,12 @@ const deactivateTenant = async () => {
                     class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:px-4 md:py-2.5 md:text-base"
                 >
                     <option value="">Semua Status</option>
-                    <option value="aktif">Aktif</option>
-                    <option value="dp">DP</option>
-                    <option value="telat">Telat</option>
-                    <option value="renovasi">Renovasi</option>
+                    <option value="LUNAS">LUNAS</option>
+                    <option value="DP">DP</option>
+                    <option value="BELUM LUNAS">BELUM LUNAS</option>
+                    <option value="JATUH TEMPO">JATUH TEMPO</option>
+                    <option value="TELAT BAYAR">TELAT BAYAR</option>
+                    <option value="ON HOLD">ON HOLD</option>
                 </select>
             </div>
             <div class="flex gap-2.5 md:mt-2 md:gap-4">
@@ -399,10 +422,12 @@ const deactivateTenant = async () => {
                             : 'border-slate-200 bg-slate-50 text-slate-700'"
                     >
                         <option value="">Semua</option>
-                        <option value="aktif">Aktif</option>
-                        <option value="dp">DP</option>
-                        <option value="telat">Telat</option>
-                        <option value="renovasi">Renovasi</option>
+                        <option value="LUNAS">LUNAS</option>
+                        <option value="DP">DP</option>
+                        <option value="BELUM LUNAS">BELUM LUNAS</option>
+                        <option value="JATUH TEMPO">JATUH TEMPO</option>
+                        <option value="TELAT BAYAR">TELAT BAYAR</option>
+                        <option value="ON HOLD">ON HOLD</option>
                     </select>
                 </label>
 

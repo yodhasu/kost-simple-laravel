@@ -5,12 +5,11 @@ import {
     Download,
     LayoutDashboard,
     LogOut,
-    Menu,
     ReceiptText,
     Settings,
     Users,
-    X,
 } from 'lucide-vue-next';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 
 type SharedPageProps = {
     component?: string;
@@ -32,6 +31,12 @@ type SharedPageProps = {
 
 const page = usePage<SharedPageProps>();
 const mobileOpen = ref(false);
+const logoutConfirmOpen = ref(false);
+
+const handleLogout = () => {
+    logoutConfirmOpen.value = false;
+    router.post('/logout');
+};
 
 const allDesktopNavItems = [
     { label: 'Beranda', href: '/dashboard', icon: LayoutDashboard },
@@ -204,6 +209,15 @@ watch(dashboardSelectedRegion, (regionId, previousRegionId) => {
                             <p class="hidden text-sm text-slate-500 lg:block">Monitor tenant, pembayaran, dan setup properti.</p>
                         </div>
                     </div>
+                    <!-- Mobile logout button -->
+                    <button
+                        type="button"
+                        class="flex size-8 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition active:scale-95 lg:hidden"
+                        @click="logoutConfirmOpen = true"
+                    >
+                        <LogOut class="size-4" />
+                        <span class="sr-only">Keluar</span>
+                    </button>
                     <div class="hidden items-center gap-3 xl:flex">
                         <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             {{ currentDate }}
@@ -248,5 +262,16 @@ watch(dashboardSelectedRegion, (regionId, previousRegionId) => {
                 <span class="text-[10px] font-semibold leading-tight">{{ item.label.split(' ').pop() }}</span>
             </Link>
         </nav>
+
+        <!-- Mobile logout confirmation modal -->
+        <ConfirmModal
+            :open="logoutConfirmOpen"
+            title="Keluar dari Akun"
+            description="Apakah Anda yakin ingin keluar dari akun ini?"
+            confirm-label="Ya, Keluar"
+            variant="danger"
+            @update:open="logoutConfirmOpen = $event"
+            @confirm="handleLogout"
+        />
     </div>
 </template>

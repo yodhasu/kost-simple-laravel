@@ -7,13 +7,17 @@ use App\Models\Tenant;
 use App\Models\Transaction;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class TenantsService
 {
+    public function __construct(
+        private readonly TenantBillingService $tenantBillingService,
+    ) {
+    }
+
     public function getAll(
         ?string $kostId = null,
         ?string $regionId = null,
@@ -22,7 +26,7 @@ class TenantsService
         ?string $search = null,
         ?string $status = null,
     ): LengthAwarePaginator {
-        return Tenant::query()
+        $paginator = Tenant::query()
             ->with(['kost.region'])
             ->when($regionId, function ($query) use ($regionId): void {
                 $query->whereHas('kost', fn ($kostQuery) => $kostQuery->where('region_id', $regionId));
@@ -38,6 +42,12 @@ class TenantsService
             })
             ->latest('created_at')
             ->paginate($pageSize, ['*'], 'page', $page);
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (Tenant $tenant) => $this->attachComputedFields($tenant)),
+        );
+
+        return $paginator;
     }
 
     public function getById(string $tenantId): Tenant
@@ -52,7 +62,7 @@ class TenantsService
         return DB::transaction(function () use ($data): Tenant {
             $dpAmount = $data['dp_amount'] ?? null;
             $dpDueDate = $data['dp_due_date'] ?? null;
-            unset($data['dp_amount'], $data['dp_due_date']);
+            unset($data['dp_amount']);
 
             $kost = Kost::query()->findOrFail($data['kost_id']);
 
@@ -60,13 +70,19 @@ class TenantsService
                 throw $this->badRequest("Kost sudah penuh ({$kost->total_units}/{$kost->total_units}).");
             }
 
-            if (($data['status'] ?? 'aktif') === 'dp') {
-                $this->ensureDpPayload($dpAmount, $dpDueDate);
+            if (($data['status'] ?? TenantBillingService::STATUS_LUNAS) === TenantBillingService::STATUS_DP) {
+                $this->ensureDpPayload($dpAmount, $dpDueDate, (int) ($data['rent_price'] ?? 0));
             }
+
+            $manualStatus = $data['status'] ?? TenantBillingService::STATUS_LUNAS;
+            $data['prepaid_balance'] = 0;
+            $data['paid_until'] = null;
+            $data['status'] = $manualStatus;
+            $data['dp_due_date'] = $manualStatus === TenantBillingService::STATUS_DP ? $dpDueDate : null;
 
             $tenant = Tenant::query()->create($data);
 
-            if ($tenant->status === 'dp' && $dpAmount) {
+            if ($tenant->status === TenantBillingService::STATUS_DP && $dpAmount) {
                 Transaction::query()->create([
                     'kost_id' => $tenant->kost_id,
                     'tenant_id' => $tenant->id,
@@ -78,7 +94,18 @@ class TenantsService
                     'region_id' => $kost->region_id,
                     'is_frozen' => true,
                 ]);
-            } else {
+
+                $this->syncDpStatus($tenant, $dpDueDate);
+                $tenant->save();
+            } elseif ($manualStatus !== TenantBillingService::STATUS_ON_HOLD) {
+                $tenant = $this->tenantBillingService->settlePayment(
+                    $tenant,
+                    max(0, (int) ($tenant->rent_price ?? 0)),
+                    $tenant->start_date ?? now()->toDateString(),
+                );
+
+                $tenant->save();
+
                 $rentTransactionId = null;
                 $rentAmount = (int) ($tenant->rent_price ?? 0);
 
@@ -98,24 +125,15 @@ class TenantsService
                     $rentTransactionId = $rentTransaction->id;
                 }
 
-                $extraFees = (int) ($tenant->trash_fee ?? 0)
-                    + (int) ($tenant->security_fee ?? 0)
-                    + (int) ($tenant->admin_fee ?? 0);
+                $this->createExtraFeeTransaction($tenant, $kost->region_id, $rentTransactionId, $tenant->start_date?->toDateString());
+            }
 
-                if ($extraFees > 0) {
-                    Transaction::query()->create([
-                        'kost_id' => $tenant->kost_id,
-                        'tenant_id' => $tenant->id,
-                        'financial_class' => 'EXPENSE',
-                        'category' => 'extra_fee',
-                        'amount' => $extraFees,
-                        'transaction_date' => $tenant->start_date ?? now()->toDateString(),
-                        'description' => 'Biaya ekstra penyewa '.$tenant->name,
-                        'region_id' => $kost->region_id,
-                        'is_frozen' => false,
-                        'reference_id' => $rentTransactionId,
-                    ]);
-                }
+            if ($manualStatus === TenantBillingService::STATUS_ON_HOLD) {
+                $tenant->status = TenantBillingService::STATUS_ON_HOLD;
+                $tenant->save();
+            } elseif ($tenant->status !== TenantBillingService::STATUS_DP) {
+                $tenant = $this->tenantBillingService->refreshStatus($tenant);
+                $tenant->save();
             }
 
             return $this->getById($tenant->id);
@@ -126,11 +144,18 @@ class TenantsService
     {
         return DB::transaction(function () use ($tenantId, $data): Tenant {
             $tenant = Tenant::query()->findOrFail($tenantId);
+            $oldRentPrice = (int) ($tenant->rent_price ?? 0);
             $dpAmount = $data['dp_amount'] ?? null;
             $dpDueDate = $data['dp_due_date'] ?? null;
-            unset($data['dp_amount'], $data['dp_due_date']);
+            unset($data['dp_amount']);
 
-            $tenant->fill($data);
+            $manualStatus = $data['status'] ?? $tenant->status;
+
+            $tenant->fill([
+                ...$data,
+                'status' => $manualStatus,
+                'dp_due_date' => $manualStatus === TenantBillingService::STATUS_DP ? $dpDueDate : null,
+            ]);
 
             if ($tenant->is_active) {
                 $kost = Kost::query()->find($tenant->kost_id);
@@ -140,9 +165,7 @@ class TenantsService
                 }
             }
 
-            $tenant->save();
-
-            if ($tenant->status === 'dp' && ($dpAmount !== null || $dpDueDate !== null)) {
+            if ($tenant->status === TenantBillingService::STATUS_DP && ($dpAmount !== null || $dpDueDate !== null)) {
                 $dpTransaction = Transaction::query()
                     ->where('tenant_id', $tenant->id)
                     ->where('category', 'dp')
@@ -153,7 +176,7 @@ class TenantsService
 
                 $effectiveAmount = $dpAmount ?? $dpTransaction?->amount ?? 0;
                 $effectiveDueDate = $dpDueDate ?? $this->extractDueDateFromDescription($dpTransaction?->description);
-                $this->ensureDpPayload((int) $effectiveAmount, $effectiveDueDate);
+                $this->ensureDpPayload((int) $effectiveAmount, $effectiveDueDate, (int) ($tenant->rent_price ?? 0));
 
                 $kost = Kost::query()->find($tenant->kost_id);
 
@@ -177,6 +200,26 @@ class TenantsService
                         'is_frozen' => true,
                     ]);
                 }
+
+                $this->syncDpStatus($tenant, $effectiveDueDate);
+            } elseif ($tenant->status !== TenantBillingService::STATUS_DP) {
+                if ($manualStatus === TenantBillingService::STATUS_ON_HOLD) {
+                    $tenant->status = TenantBillingService::STATUS_ON_HOLD;
+                } else {
+                    $tenant->status = TenantBillingService::STATUS_LUNAS;
+                }
+            }
+
+            $tenant->save();
+
+            if ($tenant->status !== TenantBillingService::STATUS_DP && $tenant->status !== TenantBillingService::STATUS_ON_HOLD && $oldRentPrice !== (int) ($tenant->rent_price ?? 0)) {
+                $tenant = $this->tenantBillingService->repriceFutureCoverage($tenant, $oldRentPrice);
+                $tenant->save();
+            }
+
+            if ($tenant->status !== TenantBillingService::STATUS_DP && $tenant->status !== TenantBillingService::STATUS_ON_HOLD) {
+                $tenant = $this->tenantBillingService->refreshStatus($tenant);
+                $tenant->save();
             }
 
             return $this->getById($tenant->id);
@@ -188,7 +231,7 @@ class TenantsService
         DB::transaction(function () use ($tenantId): void {
             $tenant = Tenant::query()->findOrFail($tenantId);
 
-            if ($tenant->status === 'dp') {
+            if ($tenant->status === TenantBillingService::STATUS_DP) {
                 $dpTransaction = Transaction::query()
                     ->where('tenant_id', $tenant->id)
                     ->where('category', 'dp')
@@ -206,10 +249,33 @@ class TenantsService
             }
 
             $tenant->is_active = false;
-            $tenant->status = 'inaktif';
             $tenant->end_date = now()->toDateString();
             $tenant->save();
         });
+    }
+
+    private function createExtraFeeTransaction(Tenant $tenant, ?string $regionId, ?string $referenceId = null, ?string $transactionDate = null): void
+    {
+        $extraFees = (int) ($tenant->trash_fee ?? 0)
+            + (int) ($tenant->security_fee ?? 0)
+            + (int) ($tenant->admin_fee ?? 0);
+
+        if ($extraFees <= 0) {
+            return;
+        }
+
+        Transaction::query()->create([
+            'kost_id' => $tenant->kost_id,
+            'tenant_id' => $tenant->id,
+            'financial_class' => 'EXPENSE',
+            'category' => 'extra_fee',
+            'amount' => $extraFees,
+            'transaction_date' => $transactionDate ?? now()->toDateString(),
+            'description' => 'Biaya ekstra penyewa '.$tenant->name,
+            'region_id' => $regionId,
+            'is_frozen' => false,
+            'reference_id' => $referenceId,
+        ]);
     }
 
     private function countActiveTenants(string $kostId, ?string $excludeTenantId = null): int
@@ -230,10 +296,14 @@ class TenantsService
         return $matches[1] ?? null;
     }
 
-    private function ensureDpPayload(?int $dpAmount, mixed $dpDueDate): void
+    private function ensureDpPayload(?int $dpAmount, mixed $dpDueDate, int $rentPrice): void
     {
         if ($dpAmount === null || $dpAmount <= 0) {
             throw $this->badRequest('dp_amount must be greater than 0 when status is DP');
+        }
+
+        if ($dpAmount >= $rentPrice) {
+            throw $this->badRequest('Nominal DP harus lebih kecil dari biaya sewa bulanan.');
         }
 
         if ($dpDueDate === null || $dpDueDate === '') {
@@ -243,6 +313,10 @@ class TenantsService
 
     private function attachComputedFields(Tenant $tenant): Tenant
     {
+        if (($tenant->is_active || $this->tenantBillingService->isDp($tenant)) && ! $this->tenantBillingService->isOnHold($tenant)) {
+            $tenant = $this->tenantBillingService->refreshTrackedStatus($tenant);
+        }
+
         $dpTransaction = Transaction::query()
             ->where('tenant_id', $tenant->id)
             ->where('category', 'dp')
@@ -251,12 +325,39 @@ class TenantsService
             ->latest('created_at')
             ->first();
 
+        $dpDueDate = $this->extractDueDateFromDescription($dpTransaction?->description);
+        $tenant->dp_due_date = $dpDueDate;
+        $isDp = $dpTransaction !== null;
+        $dpPaidAmount = $this->tenantBillingService->dpPaidTotal($tenant);
+        $dpRemainingAmount = $this->tenantBillingService->dpRemainingAmount($tenant);
+
         $tenant->setAttribute('dp_amount', $dpTransaction?->amount);
-        $tenant->setAttribute('dp_due_date', $this->extractDueDateFromDescription($dpTransaction?->description));
+        $tenant->setAttribute('dp_paid_amount', $dpPaidAmount);
+        $tenant->setAttribute('dp_remaining_amount', $dpRemainingAmount);
+        $tenant->setAttribute('is_dp', $isDp);
+
+        if ($isDp) {
+            $tenant->setAttribute(
+                'status',
+                $this->tenantBillingService->resolveDpStatus($tenant),
+            );
+        }
+
         $tenant->setAttribute('kost_name', $tenant->kost?->name);
         $tenant->setAttribute('region_name', $tenant->kost?->region?->name);
+        $tenant->setAttribute('prepaid_balance', (int) ($tenant->prepaid_balance ?? 0));
+        $tenant->setAttribute('paid_until', $tenant->paid_until?->toDateString());
+        $tenant->setAttribute('next_billing_date', $this->tenantBillingService->nextBillingDate($tenant)?->toDateString());
+        $tenant->setAttribute('current_due_amount', $this->tenantBillingService->currentDueAmount($tenant));
+        $tenant->setAttribute('total_outstanding_amount', $this->tenantBillingService->totalOutstandingAmount($tenant));
 
         return $tenant;
+    }
+
+    private function syncDpStatus(Tenant $tenant, ?string $dpDueDate): void
+    {
+        $tenant->dp_due_date = $dpDueDate;
+        $tenant->status = $this->tenantBillingService->resolveDpStatus($tenant);
     }
 
     private function badRequest(string $message): HttpResponseException

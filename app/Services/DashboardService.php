@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
+    public function __construct(
+        private readonly TenantBillingService $tenantBillingService,
+    ) {
+    }
+
     public function getSummary(?string $kostId = null, ?string $regionId = null): array
     {
         return [
@@ -42,7 +47,6 @@ class DashboardService
             ->sum('total_units');
 
         $activeTenants = Tenant::query()
-            ->where('status', 'aktif')
             ->where('is_active', true)
             ->when($kostId, fn ($query) => $query->where('kost_id', $kostId))
             ->when($regionId && ! $kostId, function ($query) use ($regionId): void {
@@ -52,7 +56,6 @@ class DashboardService
 
         $lastMonthStart = now()->startOfMonth()->subMonth();
         $lastMonthCount = Tenant::query()
-            ->where('status', 'aktif')
             ->where('is_active', true)
             ->where('created_at', '<', $lastMonthStart)
             ->when($kostId, fn ($query) => $query->where('kost_id', $kostId))
@@ -65,12 +68,8 @@ class DashboardService
             ? round((($activeTenants - $lastMonthCount) / $lastMonthCount) * 100, 1)
             : null;
 
-        $revenue = (int) Transaction::query()
-            ->where('financial_class', 'REVENUE')
-            ->where('is_frozen', false)
+        $revenue = (int) $this->baseRegularRevenueQuery($kostId, $regionId)
             ->whereDate('transaction_date', '<=', now())
-            ->when($kostId, fn ($query) => $query->where('kost_id', $kostId))
-            ->when($regionId && ! $kostId, fn ($query) => $query->where('region_id', $regionId))
             ->sum('amount');
 
         $expense = (int) Transaction::query()
@@ -81,7 +80,7 @@ class DashboardService
             ->sum('amount');
 
         $overdueQuery = Tenant::query()
-            ->where('status', 'telat')
+            ->where('status', TenantBillingService::STATUS_TELAT_BAYAR)
             ->where('is_active', true)
             ->when($kostId, fn ($query) => $query->where('kost_id', $kostId))
             ->when($regionId && ! $kostId, function ($query) use ($regionId): void {
@@ -130,9 +129,7 @@ class DashboardService
             $bucketStart = $today->copy()->day($startDay)->toDateString();
             $bucketEnd = $today->copy()->day($endDay)->toDateString();
 
-            $income = (int) $this->baseTransactionQuery($kostId, $regionId)
-                ->where('financial_class', 'REVENUE')
-                ->where('is_frozen', false)
+            $income = (int) $this->baseRegularRevenueQuery($kostId, $regionId)
                 ->whereBetween('transaction_date', [$bucketStart, $bucketEnd])
                 ->sum('amount');
 
@@ -165,17 +162,17 @@ class DashboardService
         $startOfMonth = now()->startOfMonth()->toDateString();
         $endOfMonth = now()->endOfMonth()->toDateString();
 
-        $monthlyTransactions = $this->baseTransactionQuery($kostId, $regionId)
+        $incomeTransactions = $this->baseRegularRevenueQuery($kostId, $regionId)
             ->with('kost:id,name')
             ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
             ->get();
 
-        $incomeTransactions = $monthlyTransactions
-            ->where('financial_class', 'REVENUE')
-            ->where('is_frozen', false);
+        $expenseTransactions = $this->baseTransactionQuery($kostId, $regionId)
+            ->with('kost:id,name')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->get();
 
-        $expenseTransactions = $monthlyTransactions
-            ->where('financial_class', 'EXPENSE');
+        $expenseTransactions = $expenseTransactions->where('financial_class', 'EXPENSE');
 
         $incomeByKost = $incomeTransactions
             ->groupBy(fn (Transaction $transaction) => $transaction->kost?->name ?: 'Tanpa Kost')
@@ -211,6 +208,24 @@ class DashboardService
         return Transaction::query()
             ->when($kostId, fn ($query) => $query->where('kost_id', $kostId))
             ->when($regionId && ! $kostId, fn ($query) => $query->where('region_id', $regionId));
+    }
+
+    private function baseRegularRevenueQuery(?string $kostId, ?string $regionId)
+    {
+        return $this->baseTransactionQuery($kostId, $regionId)
+            ->where('financial_class', 'REVENUE')
+            ->where('is_frozen', false)
+            ->where('category', '!=', 'dp')
+            ->where(function ($query): void {
+                $query->whereNull('reference_id')
+                    ->orWhereNotIn('reference_id', Transaction::query()
+                        ->select('id')
+                        ->where('category', 'dp'));
+            })
+            ->where(function ($query): void {
+                $query->whereNull('description')
+                    ->orWhere('description', 'not like', 'Pelunasan DP%');
+            });
     }
 
     private function formatCategoryLabel(?string $category): string

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -99,10 +100,25 @@ watch(
     },
 );
 
-const submit = () => {
+const confirmSaveOpen = ref(false);
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+    }).format(amount);
+
+const requestSave = () => {
     if (errorMessage.value) {
         return;
     }
+
+    confirmSaveOpen.value = true;
+};
+
+const executeSave = () => {
+    confirmSaveOpen.value = false;
 
     emit('save', {
         ...form,
@@ -119,7 +135,7 @@ const submit = () => {
         max-width-class="sm:max-w-2xl"
         @update:open="emit('update:open', $event)"
     >
-        <form id="expense-form-modal" class="space-y-5" @submit.prevent="submit">
+        <form id="expense-form-modal" class="space-y-5" @submit.prevent="requestSave">
             <div class="grid gap-2">
                 <Label class="text-slate-900">Pilih Tingkat <span class="text-rose-500">*</span></Label>
                 <select
@@ -234,4 +250,14 @@ const submit = () => {
             </Button>
         </template>
     </BaseModal>
+
+    <ConfirmModal
+        :open="confirmSaveOpen"
+        title="Konfirmasi Pengeluaran"
+        :description="`Simpan pengeluaran ${formatCurrency(form.amount)} untuk kategori ${form.category || '-'}?`"
+        confirm-label="Ya, Simpan"
+        variant="warning"
+        @update:open="confirmSaveOpen = $event"
+        @confirm="executeSave"
+    />
 </template>

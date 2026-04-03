@@ -19,8 +19,11 @@ class Tenant extends Model
         'name',
         'phone',
         'start_date',
+        'dp_due_date',
         'end_date',
         'rent_price',
+        'prepaid_balance',
+        'paid_until',
         'status',
         'is_active',
         'created_at',
@@ -31,8 +34,11 @@ class Tenant extends Model
 
     protected $casts = [
         'start_date' => 'date',
+        'dp_due_date' => 'date',
         'end_date' => 'date',
+        'paid_until' => 'date',
         'rent_price' => 'integer',
+        'prepaid_balance' => 'integer',
         'trash_fee' => 'integer',
         'security_fee' => 'integer',
         'admin_fee' => 'integer',

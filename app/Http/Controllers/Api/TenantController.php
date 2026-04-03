@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Kost;
 use App\Models\Tenant;
+use App\Services\TenantBillingService;
 use App\Services\RegionScopeService;
 use App\Services\TenantsService;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class TenantController extends Controller
             'trash_fee' => ['required', 'integer', 'min:0'],
             'security_fee' => ['required', 'integer', 'min:0'],
             'admin_fee' => ['required', 'integer', 'min:0'],
-            'status' => ['required', Rule::in(['aktif', 'dp'])],
+            'status' => ['required', Rule::in(TenantBillingService::manualStatuses())],
             'dp_amount' => ['nullable', 'integer', 'min:0'],
             'dp_due_date' => ['nullable', 'date'],
         ]);
@@ -69,7 +70,7 @@ class TenantController extends Controller
             'trash_fee' => ['required', 'integer', 'min:0'],
             'security_fee' => ['required', 'integer', 'min:0'],
             'admin_fee' => ['required', 'integer', 'min:0'],
-            'status' => ['required', Rule::in(['aktif', 'dp'])],
+            'status' => ['required', Rule::in(TenantBillingService::manualStatuses())],
             'dp_amount' => ['nullable', 'integer', 'min:0'],
             'dp_due_date' => ['nullable', 'date'],
         ]);

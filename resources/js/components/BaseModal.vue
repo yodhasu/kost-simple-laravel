@@ -32,23 +32,19 @@ const hasFooter = computed(() => Boolean(slots.footer));
                 maxWidthClass,
             ]"
         >
-            <DialogHeader class="shrink-0 space-y-1.5 sm:space-y-2.5">
-                <div class="flex items-start justify-between gap-3 sm:gap-4">
-                    <div>
-                        <DialogTitle class="text-sm font-bold text-slate-950 sm:text-base">{{ title }}</DialogTitle>
-                        <DialogDescription class="text-xs text-slate-500 sm:text-base">
-                            {{ description }}
-                        </DialogDescription>
-                    </div>
-                    <button
-                        type="button"
-                        class="text-slate-400 transition hover:text-slate-700"
-                        @click="emit('update:open', false)"
-                    >
-                        <X class="size-4" />
-                        <span class="sr-only">Close</span>
-                    </button>
-                </div>
+            <DialogHeader class="relative shrink-0 space-y-1.5 sm:space-y-2.5">
+                <DialogTitle class="text-sm font-bold text-slate-950 sm:text-base">{{ title }}</DialogTitle>
+                <DialogDescription v-if="description" class="text-xs text-slate-500 sm:text-base">
+                    {{ description }}
+                </DialogDescription>
+                <button
+                    type="button"
+                    class="absolute right-0 top-0 text-slate-400 transition hover:text-slate-700"
+                    @click="emit('update:open', false)"
+                >
+                    <X class="size-4 sm:size-5" />
+                    <span class="sr-only">Close</span>
+                </button>
             </DialogHeader>
 
             <div class="-mr-1 flex-1 min-h-0 overflow-y-auto pr-1">

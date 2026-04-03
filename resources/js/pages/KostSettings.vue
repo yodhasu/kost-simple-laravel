@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { Check, ChevronDown, MapPinned, Pencil, Plus, Search, ShieldCheck, X } from 'lucide-vue-next';
 import BaseModal from '@/components/BaseModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,10 @@ const regionModalOpen = ref(false);
 const adminModalOpen = ref(false);
 const regionAssignmentOpen = ref(false);
 const regionSearch = ref('');
+const confirmDeleteRegionOpen = ref(false);
+const confirmDeleteAdminOpen = ref(false);
+const pendingDeleteRegion = ref<RegionSummary | null>(null);
+const pendingDeleteAdmin = ref<AdminSummary | null>(null);
 
 const regionForm = useForm({
     name: '',
@@ -133,12 +138,21 @@ const submitRegion = () => {
 };
 
 const deleteRegion = (region: RegionSummary) => {
-    if (!window.confirm(`Hapus region "${region.name}"?`)) {
+    pendingDeleteRegion.value = region;
+    confirmDeleteRegionOpen.value = true;
+};
+
+const executeDeleteRegion = () => {
+    if (!pendingDeleteRegion.value) {
         return;
     }
 
-    router.delete(`/settings/regions/${region.id}?tab=region`, {
+    router.delete(`/settings/regions/${pendingDeleteRegion.value.id}?tab=region`, {
         preserveScroll: true,
+        onFinish: () => {
+            confirmDeleteRegionOpen.value = false;
+            pendingDeleteRegion.value = null;
+        },
     });
 };
 
@@ -199,12 +213,21 @@ const submitAdmin = () => {
 };
 
 const deleteAdmin = (admin: AdminSummary) => {
-    if (!window.confirm(`Hapus akun admin "${admin.name}"?`)) {
+    pendingDeleteAdmin.value = admin;
+    confirmDeleteAdminOpen.value = true;
+};
+
+const executeDeleteAdmin = () => {
+    if (!pendingDeleteAdmin.value) {
         return;
     }
 
-    router.delete(`/settings/admins/${admin.id}?tab=admin`, {
+    router.delete(`/settings/admins/${pendingDeleteAdmin.value.id}?tab=admin`, {
         preserveScroll: true,
+        onFinish: () => {
+            confirmDeleteAdminOpen.value = false;
+            pendingDeleteAdmin.value = null;
+        },
     });
 };
 </script>
@@ -618,5 +641,25 @@ const deleteAdmin = (admin: AdminSummary) => {
                 </Button>
             </template>
         </BaseModal>
+
+        <ConfirmModal
+            :open="confirmDeleteRegionOpen"
+            title="Hapus Region"
+            :description="`Yakin ingin menghapus region '${pendingDeleteRegion?.name ?? ''}'? Semua kost dan penyewa di region ini akan terpengaruh.`"
+            confirm-label="Ya, Hapus"
+            variant="danger"
+            @update:open="confirmDeleteRegionOpen = $event"
+            @confirm="executeDeleteRegion"
+        />
+
+        <ConfirmModal
+            :open="confirmDeleteAdminOpen"
+            title="Hapus Akun Admin"
+            :description="`Yakin ingin menghapus akun admin '${pendingDeleteAdmin?.name ?? ''}'?`"
+            confirm-label="Ya, Hapus"
+            variant="danger"
+            @update:open="confirmDeleteAdminOpen = $event"
+            @confirm="executeDeleteAdmin"
+        />
     </section>
 </template>
