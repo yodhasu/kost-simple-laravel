@@ -1,0 +1,1 @@
+import{$ as e,S as t,T as n,V as r,k as i,m as a,yt as o}from"./dist-burbAimb.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=i({__name:`InputError`,props:{message:{}},setup(i){return(c,l)=>e((r(),n(`div`,null,[t(`p`,s,o(i.message),1)],512)),[[a,i.message]])}});export{c as t};
