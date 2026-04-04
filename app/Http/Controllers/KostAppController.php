@@ -153,14 +153,14 @@ class KostAppController extends Controller
             ->get(['id', 'name']);
 
         $regions = Region::query()
-            ->withCount(['kosts as totalUnits' => fn ($query) => $query->select(\DB::raw('coalesce(sum(total_units),0)'))])
+            ->withCount('kosts')
             ->withCount(['users as activeAdmins' => fn ($query) => $query->whereHas('profile', fn ($profileQuery) => $profileQuery->where('role', 'admin'))])
             ->latest('created_at')
             ->get()
             ->map(fn (Region $region) => [
                 'id' => $region->id,
                 'name' => $region->name,
-                'totalUnits' => (int) $region->totalUnits,
+                'totalKosts' => (int) $region->kosts_count,
                 'activeAdmins' => (int) $region->activeAdmins,
             ])
             ->all();

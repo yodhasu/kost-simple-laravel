@@ -65,16 +65,16 @@ class ExportsService
                 continue;
             }
 
-            $rows = match ($type) {
-                'tenants' => $this->tenantRows($filters['start_date'], $filters['end_date'], $regionId, $user),
-                'payments' => $this->paymentRows($filters['start_date'], $filters['end_date'], $regionId, $user),
-                'control_map' => $this->controlMapRows($regionId, $user),
-                default => [],
-            };
-
             $sheet = new Worksheet($spreadsheet, $this->sheetTitle($type));
             $spreadsheet->addSheet($sheet);
-            $this->fillSheet($sheet, $rows);
+            $this->appendReadableOperationalSheet(
+                $sheet,
+                $type,
+                $filters['start_date'],
+                $filters['end_date'],
+                $regionId,
+                $user,
+            );
         }
 
         if ($spreadsheet->getSheetCount() === 0) {
@@ -102,30 +102,30 @@ class ExportsService
      */
     private function tenantRows(string $startDate, string $endDate, ?string $regionId, User $user): array
     {
-        return $this->baseTenantQuery($regionId, $user)
+        $rows = $this->baseTenantQuery($regionId, $user)
             ->whereBetween('tenants.start_date', [$startDate, $endDate])
-            ->orderBy('regions.name')
-            ->orderBy('kosts.name')
-            ->orderBy('tenants.start_date')
             ->get()
             ->map(fn ($row) => [
-                'tenant_id' => $row->tenant_id,
-                'tenant_name' => $row->tenant_name,
-                'phone' => $row->phone,
-                'region_name' => $row->region_name,
-                'kost_name' => $row->kost_name,
-                'start_date' => $row->start_date,
-                'end_date' => $row->end_date,
-                'status' => $row->status,
-                'is_active' => (int) $row->is_active,
-                'rent_price' => (int) $row->rent_price,
-                'prepaid_balance' => (int) $row->prepaid_balance,
-                'paid_until' => $row->paid_until,
-                'trash_fee' => (int) $row->trash_fee,
-                'security_fee' => (int) $row->security_fee,
-                'admin_fee' => (int) $row->admin_fee,
+                $row->region_name,
+                $row->kost_name,
+                $row->tenant_name,
+                $row->phone,
+                $row->start_date,
+                $row->end_date,
+                $row->status,
+                (int) $row->is_active === 1 ? 'Aktif' : 'Tidak Aktif',
+                (int) $row->rent_price,
+                (int) $row->prepaid_balance,
+                $row->paid_until,
+                (int) $row->trash_fee,
+                (int) $row->security_fee,
+                (int) $row->admin_fee,
             ])
             ->all();
+
+        usort($rows, fn (array $a, array $b) => [$a[4] ?? '9999-12-31', $a[0] ?? '', $a[1] ?? '', $a[2] ?? ''] <=> [$b[4] ?? '9999-12-31', $b[0] ?? '', $b[1] ?? '', $b[2] ?? '']);
+
+        return $rows;
     }
 
     /**
@@ -133,27 +133,27 @@ class ExportsService
      */
     private function paymentRows(string $startDate, string $endDate, ?string $regionId, User $user): array
     {
-        return $this->baseDetailedTransactionQuery($regionId, $user)
+        $rows = $this->baseDetailedTransactionQuery($regionId, $user)
             ->whereBetween('transactions.transaction_date', [$startDate, $endDate])
             ->whereIn('transactions.financial_class', ['REVENUE', 'LIABILITY'])
-            ->orderBy('regions.name')
-            ->orderBy('kosts.name')
-            ->orderBy('transactions.transaction_date')
             ->get()
             ->map(fn ($row) => [
-                'transaction_id' => $row->transaction_id,
-                'transaction_date' => $row->transaction_date,
-                'region_name' => $row->region_name,
-                'kost_name' => $row->kost_name,
-                'tenant_name' => $row->tenant_name,
-                'category' => $row->category,
-                'financial_class' => $row->financial_class,
-                'amount' => (int) $row->amount,
-                'description' => $row->description,
-                'is_frozen' => (int) $row->is_frozen,
-                'reference_id' => $row->reference_id,
+                $row->transaction_date,
+                $row->region_name,
+                $row->kost_name,
+                $row->tenant_name,
+                $this->paymentTypeLabel($row->category, $row->financial_class, $row->description, $row->reference_id),
+                $row->financial_class,
+                (int) $row->amount,
+                (int) $row->is_frozen === 1 ? 'Masih Ditahan' : 'Sudah Masuk',
+                $row->description,
+                $row->reference_id,
             ])
             ->all();
+
+        usort($rows, fn (array $a, array $b) => [$a[0] ?? '9999-12-31', $a[1] ?? '', $a[2] ?? '', $a[3] ?? ''] <=> [$b[0] ?? '9999-12-31', $b[1] ?? '', $b[2] ?? '', $b[3] ?? '']);
+
+        return $rows;
     }
 
     /**
@@ -181,6 +181,7 @@ class ExportsService
             ])
             ->orderBy('regions.name')
             ->orderBy('kosts.name')
+            ->orderBy('user_regions.assigned_at')
             ->orderBy('user_profiles.role')
             ->orderBy('user_profiles.name');
 
@@ -190,20 +191,25 @@ class ExportsService
             $query->where('regions.id', $regionId);
         }
 
-        return $query->get()
+        $rows = $query->get()
             ->map(fn ($row) => [
-                'region_name' => $row->region_name,
-                'kost_name' => $row->kost_name,
-                'kost_address' => $row->kost_address,
-                'total_units' => $row->total_units !== null ? (int) $row->total_units : null,
-                'occupied_units' => (int) $row->occupied_units,
-                'admin_name' => $row->admin_name,
-                'admin_username' => $row->admin_username,
-                'admin_email' => $row->admin_email,
-                'admin_role' => $row->admin_role,
-                'assigned_at' => $row->assigned_at,
+                $row->region_name,
+                $row->kost_name,
+                $row->kost_address,
+                $row->total_units !== null ? (int) $row->total_units : null,
+                (int) $row->occupied_units,
+                $row->total_units !== null ? max(0, (int) $row->total_units - (int) $row->occupied_units) : null,
+                $row->admin_name,
+                $row->admin_username,
+                $row->admin_email,
+                $row->admin_role,
+                $row->assigned_at,
             ])
             ->all();
+
+        usort($rows, fn (array $a, array $b) => [$a[10] ?? '9999-12-31', $a[0] ?? '', $a[1] ?? '', $a[6] ?? ''] <=> [$b[10] ?? '9999-12-31', $b[0] ?? '', $b[1] ?? '', $b[6] ?? '']);
+
+        return $rows;
     }
 
     private function appendMonetizationReportSheets(
@@ -287,6 +293,54 @@ class ExportsService
             $context['reconciliation_rows'],
             currencyColumns: [2],
         );
+    }
+
+    private function appendReadableOperationalSheet(
+        Worksheet $sheet,
+        string $type,
+        string $startDate,
+        string $endDate,
+        ?string $regionId,
+        User $user,
+    ): void {
+        $metaLines = [
+            'Periode: '.$startDate.' s/d '.$endDate,
+            'Region: '.$this->regionLabel($regionId),
+            'Dibuat pada: '.now()->format('Y-m-d H:i:s'),
+        ];
+
+        match ($type) {
+            'tenants' => $this->renderTableSheet(
+                $sheet,
+                'Data Penyewa',
+                $metaLines,
+                ['Region', 'Kost', 'Nama Penyewa', 'Nomor HP', 'Tanggal Masuk', 'Tanggal Keluar', 'Status Pembayaran', 'Status Hunian', 'Biaya Sewa Bulanan', 'Carryover Balance', 'Lunas Sampai', 'Biaya Sampah', 'Biaya Keamanan', 'Biaya Admin'],
+                $this->tenantRows($startDate, $endDate, $regionId, $user),
+                currencyColumns: [9, 10, 12, 13, 14],
+                dateColumns: [5, 6, 11],
+            ),
+            'payments' => $this->renderTableSheet(
+                $sheet,
+                'Riwayat Pembayaran',
+                $metaLines,
+                ['Tanggal', 'Region', 'Kost', 'Nama Penyewa', 'Tipe Pembayaran', 'Kelas Finansial', 'Nilai', 'Status Dana', 'Keterangan', 'Reference ID'],
+                $this->paymentRows($startDate, $endDate, $regionId, $user),
+                currencyColumns: [7],
+                dateColumns: [1],
+            ),
+            'control_map' => $this->renderTableSheet(
+                $sheet,
+                'Kontrol Region',
+                [
+                    'Region: '.$this->regionLabel($regionId),
+                    'Dibuat pada: '.now()->format('Y-m-d H:i:s'),
+                ],
+                ['Region', 'Kost', 'Alamat Kost', 'Total Kamar', 'Kamar Terisi', 'Kamar Kosong', 'Nama Admin', 'Username Admin', 'Email Admin', 'Peran', 'Ditugaskan Pada'],
+                $this->controlMapRows($regionId, $user),
+                dateColumns: [11],
+            ),
+            default => $this->fillSheet($sheet, []),
+        };
     }
 
     /**
@@ -862,6 +916,22 @@ class ExportsService
                         });
                 });
             });
+    }
+
+    private function paymentTypeLabel(?string $category, ?string $financialClass, ?string $description, ?string $referenceId): string
+    {
+        if ($category === 'dp' || $financialClass === 'LIABILITY') {
+            return 'DP';
+        }
+
+        if ($referenceId !== null || ($description && str_contains($description, 'Pelunasan DP'))) {
+            return 'Pelunasan DP';
+        }
+
+        return match ($category) {
+            'rent' => 'Sewa',
+            default => $this->formatCategoryLabel($category),
+        };
     }
 
     private function scopedTenantModels(?string $regionId, User $user)

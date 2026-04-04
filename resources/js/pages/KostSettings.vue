@@ -13,7 +13,7 @@ import type { Viewer } from '@/types/kost';
 type RegionSummary = {
     id: string;
     name: string;
-    totalUnits: number;
+    totalKosts: number;
     activeAdmins: number;
 };
 
@@ -292,7 +292,7 @@ const executeDeleteAdmin = () => {
                     >
                         <div class="min-w-0">
                             <p class="text-xs font-semibold text-slate-900 md:text-base">{{ item.name }}</p>
-                            <p class="mt-0.5 text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.totalUnits }} unit · {{ item.activeAdmins }} admin</p>
+                            <p class="mt-0.5 text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.totalKosts }} kost · {{ item.activeAdmins }} admin</p>
                         </div>
                         <div class="flex shrink-0 gap-1 md:gap-2">
                             <button type="button" class="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startRegionEdit(item)">Edit</button>
@@ -310,7 +310,7 @@ const executeDeleteAdmin = () => {
                         <thead class="bg-slate-50 uppercase tracking-[0.18em] text-slate-500">
                             <tr>
                                 <th class="px-6 py-4">Nama Region</th>
-                                <th class="px-6 py-4">Total Unit</th>
+                                <th class="px-6 py-4">Total Kost</th>
                                 <th class="px-6 py-4">Admin Aktif</th>
                                 <th class="px-6 py-4">Aksi</th>
                             </tr>
@@ -322,7 +322,7 @@ const executeDeleteAdmin = () => {
                                 class="border-t border-slate-100 text-slate-600"
                             >
                                 <td class="px-6 py-4 font-semibold text-slate-950">{{ item.name }}</td>
-                                <td class="px-6 py-4">{{ item.totalUnits }}</td>
+                                <td class="px-6 py-4">{{ item.totalKosts }}</td>
                                 <td class="px-6 py-4">{{ item.activeAdmins }}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex gap-2">
@@ -573,7 +573,7 @@ const executeDeleteAdmin = () => {
 
                         <div
                             v-if="regionAssignmentOpen && !isItRole"
-                            class="absolute z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+                            class="mt-2 w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
                         >
                             <div class="flex items-center gap-2 rounded-xl border border-slate-900/50 bg-white px-3 py-2">
                                 <Search class="size-4 text-slate-400" />
