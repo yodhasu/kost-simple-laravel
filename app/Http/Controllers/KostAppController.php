@@ -177,15 +177,32 @@ class KostAppController extends Controller
             ->values()
             ->all();
 
+        $kostOptions = Kost::query()
+            ->with('region:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'region_id'])
+            ->map(fn (Kost $kost) => [
+                'id' => $kost->id,
+                'name' => $kost->name,
+                'regionId' => $kost->region_id,
+                'regionName' => $kost->region?->name,
+            ])
+            ->values()
+            ->all();
+
+        $requestedTab = $request->string('tab')->toString();
+        $activeTab = in_array($requestedTab, ['region', 'admin', 'purge'], true) ? $requestedTab : 'region';
+
         return Inertia::render('KostSettings', [
             'viewer' => $this->viewer($request),
-            'activeTab' => $request->string('tab')->toString() === 'admin' ? 'admin' : 'region',
+            'activeTab' => $activeTab,
             'regions' => $regions,
             'regionOptions' => $allRegions->map(fn (Region $region) => [
                 'id' => $region->id,
                 'name' => $region->name,
             ])->all(),
             'admins' => $admins,
+            'kostOptions' => $kostOptions,
         ]);
     }
 

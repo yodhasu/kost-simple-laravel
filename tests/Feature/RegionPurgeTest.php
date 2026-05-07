@@ -104,6 +104,83 @@ class RegionPurgeTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
+    public function test_owner_can_purge_by_kost_only(): void
+    {
+        $owner = $this->makeUserWithRole('owner');
+
+        $region = Region::query()->create(['name' => 'Region A']);
+        $kostOne = Kost::query()->create([
+            'region_id' => $region->id,
+            'name' => 'Kost One',
+            'total_units' => 10,
+        ]);
+        $kostTwo = Kost::query()->create([
+            'region_id' => $region->id,
+            'name' => 'Kost Two',
+            'total_units' => 10,
+        ]);
+
+        $tenantOne = Tenant::query()->create([
+            'kost_id' => $kostOne->id,
+            'name' => 'Tenant One',
+            'start_date' => '2026-05-01',
+            'rent_price' => 1_000_000,
+            'status' => 'LUNAS',
+            'is_active' => true,
+            'trash_fee' => 0,
+            'security_fee' => 0,
+            'admin_fee' => 0,
+        ]);
+
+        $tenantTwo = Tenant::query()->create([
+            'kost_id' => $kostTwo->id,
+            'name' => 'Tenant Two',
+            'start_date' => '2026-05-01',
+            'rent_price' => 1_000_000,
+            'status' => 'LUNAS',
+            'is_active' => true,
+            'trash_fee' => 0,
+            'security_fee' => 0,
+            'admin_fee' => 0,
+        ]);
+
+        Transaction::query()->create([
+            'kost_id' => $kostOne->id,
+            'tenant_id' => $tenantOne->id,
+            'category' => 'rent',
+            'amount' => 1_000_000,
+            'transaction_date' => '2026-05-01',
+            'description' => 'kost-one',
+            'region_id' => $region->id,
+            'financial_class' => 'REVENUE',
+            'is_frozen' => false,
+        ]);
+
+        Transaction::query()->create([
+            'kost_id' => $kostTwo->id,
+            'tenant_id' => $tenantTwo->id,
+            'category' => 'rent',
+            'amount' => 1_000_000,
+            'transaction_date' => '2026-05-01',
+            'description' => 'kost-two',
+            'region_id' => $region->id,
+            'financial_class' => 'REVENUE',
+            'is_frozen' => false,
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('settings.purge-data', ['tab' => 'purge']), [
+            'scope' => 'kost',
+            'kost_id' => $kostOne->id,
+        ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseMissing('tenants', ['id' => $tenantOne->id]);
+        $this->assertDatabaseHas('tenants', ['id' => $tenantTwo->id]);
+        $this->assertDatabaseMissing('transactions', ['description' => 'kost-one']);
+        $this->assertDatabaseHas('transactions', ['description' => 'kost-two']);
+    }
+
     private function makeUserWithRole(string $role): User
     {
         $user = User::query()->create([
@@ -122,4 +199,3 @@ class RegionPurgeTest extends TestCase
         return $user;
     }
 }
-

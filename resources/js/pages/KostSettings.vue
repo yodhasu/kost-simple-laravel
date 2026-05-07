@@ -22,6 +22,13 @@ type RegionOption = {
     name: string;
 };
 
+type KostOption = {
+    id: string;
+    name: string;
+    regionId: string;
+    regionName: string | null;
+};
+
 type AdminSummary = {
     id: string;
     name: string;
@@ -33,14 +40,15 @@ type AdminSummary = {
 
 const props = defineProps<{
     viewer: Viewer;
-    activeTab: 'region' | 'admin';
+    activeTab: 'region' | 'admin' | 'purge';
     regions: RegionSummary[];
     regionOptions: RegionOption[];
     admins: AdminSummary[];
+    kostOptions: KostOption[];
 }>();
 
 const page = usePage<{ errors?: Record<string, string> }>();
-const activeTab = ref<'region' | 'admin'>(props.activeTab);
+const activeTab = ref<'region' | 'admin' | 'purge'>(props.activeTab);
 const editingRegionId = ref<string | null>(null);
 const editingAdminId = ref<string | null>(null);
 const regionModalOpen = ref(false);
@@ -49,10 +57,12 @@ const regionAssignmentOpen = ref(false);
 const regionSearch = ref('');
 const confirmDeleteRegionOpen = ref(false);
 const confirmDeleteAdminOpen = ref(false);
-const confirmPurgeRegionOpen = ref(false);
 const pendingDeleteRegion = ref<RegionSummary | null>(null);
 const pendingDeleteAdmin = ref<AdminSummary | null>(null);
-const pendingPurgeRegion = ref<RegionSummary | null>(null);
+const confirmPurgeOpen = ref(false);
+const purgeTargetLabel = ref('');
+const purgeSearch = ref('');
+const purgeKostRegionFilter = ref<'all' | string>('all');
 
 const regionForm = useForm({
     name: '',
@@ -65,6 +75,12 @@ const adminForm = useForm({
     region_ids: [] as string[],
     password: '',
     password_confirmation: '',
+});
+
+const purgeForm = useForm({
+    scope: 'region' as 'region' | 'kost',
+    region_id: '',
+    kost_id: '',
 });
 
 const regionDeleteError = computed(() => page.props.errors?.region_delete);
@@ -88,6 +104,30 @@ const filteredRegionOptions = computed(() => {
         region.name.toLowerCase().includes(keyword),
     );
 });
+
+const selectedPurgeRegion = computed(() =>
+    props.regionOptions.find((region) => region.id === purgeForm.region_id),
+);
+
+const filteredPurgeKostOptions = computed(() => {
+    const keyword = purgeSearch.value.trim().toLowerCase();
+
+    return props.kostOptions.filter((kost) => {
+        if (purgeKostRegionFilter.value !== 'all' && kost.regionId !== purgeKostRegionFilter.value) {
+            return false;
+        }
+
+        if (!keyword) {
+            return true;
+        }
+
+        return `${kost.name} ${kost.regionName ?? ''}`.toLowerCase().includes(keyword);
+    });
+});
+
+const selectedPurgeKost = computed(() =>
+    props.kostOptions.find((kost) => kost.id === purgeForm.kost_id),
+);
 
 const resetRegionForm = () => {
     editingRegionId.value = null;
@@ -158,21 +198,41 @@ const executeDeleteRegion = () => {
     });
 };
 
-const purgeRegion = (region: RegionSummary) => {
-    pendingPurgeRegion.value = region;
-    confirmPurgeRegionOpen.value = true;
+const requestPurge = () => {
+    purgeForm.clearErrors();
+
+    if (purgeForm.scope === 'region') {
+        if (!purgeForm.region_id) {
+            purgeForm.setError('region_id', 'Pilih region terlebih dahulu.');
+            return;
+        }
+
+        purgeTargetLabel.value = `region '${selectedPurgeRegion.value?.name ?? ''}'`;
+    } else {
+        if (!purgeForm.kost_id) {
+            purgeForm.setError('kost_id', 'Pilih kost terlebih dahulu.');
+            return;
+        }
+
+        purgeTargetLabel.value = `kost '${selectedPurgeKost.value?.name ?? ''}'`;
+    }
+
+    confirmPurgeOpen.value = true;
 };
 
-const executePurgeRegion = () => {
-    if (!pendingPurgeRegion.value) {
+const executePurge = () => {
+    if (purgeForm.scope === 'region' && !purgeForm.region_id) {
         return;
     }
 
-    router.post(`/settings/regions/${pendingPurgeRegion.value.id}/purge?tab=region`, {}, {
+    if (purgeForm.scope === 'kost' && !purgeForm.kost_id) {
+        return;
+    }
+
+    purgeForm.post('/settings/purge-data?tab=purge', {
         preserveScroll: true,
         onFinish: () => {
-            confirmPurgeRegionOpen.value = false;
-            pendingPurgeRegion.value = null;
+            confirmPurgeOpen.value = false;
         },
     });
 };
@@ -287,6 +347,14 @@ const executeDeleteAdmin = () => {
                     <ShieldCheck class="size-3.5 md:size-4" />
                     Admin
                 </button>
+                <button
+                    type="button"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition md:min-h-0 md:gap-2 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                    :class="activeTab === 'purge' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600'"
+                    @click="activeTab = 'purge'"
+                >
+                    Purge
+                </button>
             </div>
 
             <!-- Region tab -->
@@ -316,7 +384,6 @@ const executeDeleteAdmin = () => {
                             <p class="mt-0.5 text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.totalKosts }} kost · {{ item.activeAdmins }} admin</p>
                         </div>
                         <div class="flex shrink-0 gap-1 md:gap-2">
-                            <button type="button" class="min-h-10 rounded-md bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="purgeRegion(item)">Purge</button>
                             <button type="button" class="min-h-10 rounded-md bg-sky-50 px-2.5 py-2 text-xs font-semibold text-sky-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startRegionEdit(item)">Edit</button>
                             <button type="button" class="min-h-10 rounded-md bg-rose-50 px-2.5 py-2 text-xs font-semibold text-rose-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteRegion(item)">Hapus</button>
                         </div>
@@ -350,13 +417,6 @@ const executeDeleteAdmin = () => {
                                     <div class="flex gap-2">
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
-                                            @click="purgeRegion(item)"
-                                        >
-                                            Purge
-                                        </button>
-                                        <button
-                                            type="button"
                                             class="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700"
                                             @click="startRegionEdit(item)"
                                         >
@@ -384,7 +444,7 @@ const executeDeleteAdmin = () => {
             </div>
 
             <!-- Admin tab -->
-            <div v-else class="mt-3 space-y-2 md:mt-5 md:space-y-5">
+            <div v-else-if="activeTab === 'admin'" class="mt-3 space-y-2 md:mt-5 md:space-y-5">
                 <div class="flex items-center justify-between gap-2">
                     <h3 class="text-xs font-bold text-slate-950 md:text-xl">Admin <span class="font-normal text-slate-500">({{ admins.length }})</span></h3>
                     <button type="button" class="inline-flex min-h-10 items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white md:gap-2 md:rounded-xl md:px-4 md:py-2.5 md:text-base" @click="openAdminCreate">
@@ -466,6 +526,89 @@ const executeDeleteAdmin = () => {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Purge tab -->
+            <div v-else class="mt-3 space-y-3 md:mt-5 md:space-y-5">
+                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 md:rounded-2xl md:text-sm">
+                    <p class="font-semibold">Perhatian: fitur ini menghapus data permanen.</p>
+                    <p class="mt-1">Jika dijalankan, data <strong>penyewa + transaksi</strong> pada item yang dipilih (region atau kost) akan dihapus total.</p>
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-2 md:gap-4">
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Target Purge</span>
+                        <select
+                            v-model="purgeForm.scope"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-500 focus:outline-none"
+                        >
+                            <option value="region">Region</option>
+                            <option value="kost">Kost Spesifik</option>
+                        </select>
+                    </label>
+
+                    <label v-if="purgeForm.scope === 'kost'" class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Filter Region</span>
+                        <select
+                            v-model="purgeKostRegionFilter"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-500 focus:outline-none"
+                        >
+                            <option value="all">Semua Region</option>
+                            <option v-for="region in regionOptions" :key="`purge-filter-${region.id}`" :value="region.id">{{ region.name }}</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div v-if="purgeForm.scope === 'region'" class="space-y-2">
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Pilih Region</span>
+                        <select
+                            v-model="purgeForm.region_id"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-500 focus:outline-none"
+                        >
+                            <option value="">-- Pilih Region --</option>
+                            <option v-for="region in regionOptions" :key="`purge-region-${region.id}`" :value="region.id">{{ region.name }}</option>
+                        </select>
+                    </label>
+                    <InputError :message="purgeForm.errors.region_id" />
+                </div>
+
+                <div v-else class="space-y-2">
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Cari Kost</span>
+                        <input
+                            v-model="purgeSearch"
+                            type="text"
+                            placeholder="Cari nama kost..."
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-500 focus:outline-none"
+                        />
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Pilih Kost</span>
+                        <select
+                            v-model="purgeForm.kost_id"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-teal-500 focus:outline-none"
+                        >
+                            <option value="">-- Pilih Kost --</option>
+                            <option v-for="kost in filteredPurgeKostOptions" :key="`purge-kost-${kost.id}`" :value="kost.id">
+                                {{ kost.name }} ({{ kost.regionName ?? 'Tanpa Region' }})
+                            </option>
+                        </select>
+                    </label>
+                    <InputError :message="purgeForm.errors.kost_id" />
+                </div>
+
+                <div class="flex justify-end">
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="purgeForm.processing"
+                        @click="requestPurge"
+                    >
+                        {{ purgeForm.processing ? 'Memproses...' : 'Purge Data Sekarang' }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -672,13 +815,13 @@ const executeDeleteAdmin = () => {
         </BaseModal>
 
         <ConfirmModal
-            :open="confirmPurgeRegionOpen"
-            title="Purge Data Region"
-            :description="`Yakin purge data region '${pendingPurgeRegion?.name ?? ''}'? Semua data tenant dan transaksi pada region ini akan dihapus permanen.`"
+            :open="confirmPurgeOpen"
+            title="Konfirmasi Purge Data"
+            :description="`Yakin menjalankan purge untuk ${purgeTargetLabel}? Data penyewa dan transaksi akan terhapus permanen.`"
             confirm-label="Ya, Purge"
             variant="danger"
-            @update:open="confirmPurgeRegionOpen = $event"
-            @confirm="executePurgeRegion"
+            @update:open="confirmPurgeOpen = $event"
+            @confirm="executePurge"
         />
 
         <ConfirmModal

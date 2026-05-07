@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Settings\AdminAccountController;
+use App\Http\Controllers\Settings\DataPurgeController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\RegionPurgeController;
 use App\Http\Controllers\Settings\RegionController;
@@ -20,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('settings/regions/{region}', [RegionController::class, 'update'])->name('settings.regions.update');
         Route::delete('settings/regions/{region}', [RegionController::class, 'destroy'])->name('settings.regions.destroy');
         Route::post('settings/regions/{region}/purge', RegionPurgeController::class)->name('settings.regions.purge');
+        Route::post('settings/purge-data', DataPurgeController::class)->name('settings.purge-data');
 
         Route::post('settings/admins', [AdminAccountController::class, 'store'])->name('settings.admins.store');
         Route::patch('settings/admins/{user}', [AdminAccountController::class, 'update'])->name('settings.admins.update');
