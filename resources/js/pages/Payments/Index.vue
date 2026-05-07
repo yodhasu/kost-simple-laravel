@@ -18,7 +18,6 @@ import KostFormModal from '@/components/kosts/KostFormModal.vue';
 import PaymentUpdateModal, { type PaymentTenantOption } from '@/components/payments/PaymentUpdateModal.vue';
 import TenantFormModal, { type TenantFormKostOption } from '@/components/tenants/TenantFormModal.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError, apiRequest } from '@/lib/api';
 import type { RegionOption, Viewer } from '@/types/kost';
@@ -324,51 +323,6 @@ const handleKostDelete = async () => {
             </p>
         </div>
 
-        <!-- Mobile: compact 2×3 action grid -->
-        <div class="grid grid-cols-3 gap-2 lg:hidden md:gap-4 md:px-2">
-            <button
-                v-for="action in quickActions"
-                :key="'m-' + action.title"
-                type="button"
-                class="flex flex-col items-center gap-1.5 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200/70 transition active:scale-95 md:gap-2.5 md:rounded-2xl md:p-5"
-                @click="openActionModal(action)"
-            >
-                <div
-                    class="flex size-10 items-center justify-center rounded-xl ring-1 md:size-14 md:rounded-2xl"
-                    :class="actionTone(action.icon).chip"
-                >
-                    <component :is="iconMap[action.icon as keyof typeof iconMap]" class="size-5 md:size-6" />
-                </div>
-                <span class="text-center text-[10px] font-semibold leading-tight text-slate-700 md:text-base">{{ action.title }}</span>
-            </button>
-        </div>
-
-        <!-- Desktop: full action cards (hidden on mobile) -->
-        <div class="hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-3">
-            <article
-                v-for="action in quickActions"
-                :key="action.title"
-                class="rounded-4xl bg-white p-6 shadow-[0_16px_34px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_rgba(15,23,42,0.10)]"
-            >
-                <div
-                    class="flex size-14 items-center justify-center rounded-2xl ring-1"
-                    :class="actionTone(action.icon).chip"
-                >
-                    <component :is="iconMap[action.icon as keyof typeof iconMap]" class="size-6" />
-                </div>
-                <h3 class="mt-5 text-xl font-bold text-slate-950">{{ action.title }}</h3>
-                <p class="mt-2 text-sm leading-6 text-slate-600">{{ action.description }}</p>
-                <button
-                    type="button"
-                    class="mt-5 inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition"
-                    :class="actionTone(action.icon).button"
-                    @click="openActionModal(action)"
-                >
-                    Buka Form
-                    <ArrowUpRight class="size-4" />
-                </button>
-            </article>
-        </div>
 
         <div
             v-if="showAccessDenied"
@@ -380,9 +334,65 @@ const handleKostDelete = async () => {
             </div>
         </div>
 
-        <div v-if="actionError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {{ actionError }}
-        </div>
+        <article class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-6 md:shadow-[0_18px_40px_rgba(15,23,42,0.08)] md:ring-slate-200/80">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 md:text-sm">Action Hub</p>
+                    <h3 class="mt-1 text-lg font-bold text-slate-950 md:text-2xl">Pilih aksi operasional</h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Semua form utama untuk input harian tersedia di sini. Pilih aksi sesuai kebutuhan lalu lanjutkan dari modal.
+                    </p>
+                </div>
+            </div>
+
+            <div v-if="actionError" class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {{ actionError }}
+            </div>
+
+            <div class="mt-5 grid grid-cols-3 gap-2 lg:hidden md:gap-4">
+                <button
+                    v-for="action in quickActions"
+                    :key="'m-' + action.title"
+                    type="button"
+                    class="flex flex-col items-center gap-1.5 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70 transition active:scale-95 md:gap-2.5 md:rounded-2xl md:p-5"
+                    @click="openActionModal(action)"
+                >
+                    <div
+                        class="flex size-10 items-center justify-center rounded-xl ring-1 md:size-14 md:rounded-2xl"
+                        :class="actionTone(action.icon).chip"
+                    >
+                        <component :is="iconMap[action.icon as keyof typeof iconMap]" class="size-5 md:size-6" />
+                    </div>
+                    <span class="text-center text-[10px] font-semibold leading-tight text-slate-700 md:text-base">{{ action.title }}</span>
+                </button>
+            </div>
+
+            <div class="mt-5 hidden gap-4 lg:grid lg:grid-cols-2 xl:grid-cols-3">
+                <article
+                    v-for="action in quickActions"
+                    :key="action.title"
+                    class="rounded-3xl bg-slate-50 p-5 ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+                >
+                    <div
+                        class="flex size-12 items-center justify-center rounded-2xl ring-1"
+                        :class="actionTone(action.icon).chip"
+                    >
+                        <component :is="iconMap[action.icon as keyof typeof iconMap]" class="size-5" />
+                    </div>
+                    <h3 class="mt-4 text-lg font-bold text-slate-950">{{ action.title }}</h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">{{ action.description }}</p>
+                    <button
+                        type="button"
+                        class="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                        :class="actionTone(action.icon).button"
+                        @click="openActionModal(action)"
+                    >
+                        Buka Form
+                        <ArrowUpRight class="size-4" />
+                    </button>
+                </article>
+            </div>
+        </article>
 
         <TenantFormModal
             v-if="isTenantAction"

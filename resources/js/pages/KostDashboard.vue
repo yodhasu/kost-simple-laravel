@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { BedDouble, CalendarDays, CircleDollarSign, DoorOpen, Users } from 'lucide-vue-next';
+import { BedDouble, CalendarDays, CircleDollarSign, DoorOpen, TrendingUp, Users } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { RegionOption, Viewer } from '@/types/kost';
 
@@ -71,6 +71,13 @@ const chartScale = computed(() => {
 });
 const chartMax = computed(() => Math.max(maxBarValue.value, chartScale.value[chartScale.value.length - 1] * 1000));
 const chartLinePositions = computed(() => chartScale.value.map((value: number) => (value / chartScale.value[chartScale.value.length - 1]) * 100));
+const occupancyRate = computed(() => {
+    if (props.stats.totalRooms <= 0) {
+        return 0;
+    }
+
+    return Math.round((props.stats.activeTenants / props.stats.totalRooms) * 100);
+});
 const piePalette = ['#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#f59e0b', '#f97316'];
 
 const incomeBreakdown = computed(() =>
@@ -187,7 +194,7 @@ watch(selectedRegion, (regionId, previousRegionId) => {
             </div>
 
             <!-- Revenue + DP: side-by-side compact -->
-            <div class="grid grid-cols-2 gap-2 md:gap-3.5">
+            <div class="grid grid-cols-1 gap-2 md:gap-3.5 sm:grid-cols-2">
                 <article class="rounded-xl bg-white p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 md:rounded-2xl md:p-3.5">
                     <div class="flex items-center justify-between">
                         <p class="text-[10px] font-semibold text-slate-500 md:text-[9px] md:tracking-wide">Total Pendapatan Bersih</p>
@@ -248,12 +255,12 @@ watch(selectedRegion, (regionId, previousRegionId) => {
             </article>
 
             <!-- Finance summary: compact 2-col -->
-            <div class="flex items-center gap-2 rounded-xl bg-white p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 md:gap-3.5 md:rounded-2xl md:p-3.5">
-                <div class="flex-1 rounded-lg bg-linear-to-r from-emerald-50 to-emerald-100 p-2 md:rounded-lg md:p-3.5">
+            <div class="grid gap-2 rounded-xl bg-white p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 md:gap-3.5 md:rounded-2xl md:p-3.5 sm:grid-cols-2">
+                <div class="rounded-lg bg-linear-to-r from-emerald-50 to-emerald-100 p-2 md:rounded-lg md:p-3.5">
                     <p class="text-[10px] font-medium text-emerald-800 md:text-[9px] md:font-semibold">Penghasilan</p>
                     <p class="mt-0.5 text-sm font-extrabold text-emerald-700 md:mt-1 md:text-lg">{{ compactCurrency(props.financeOverview.income_total) }}</p>
                 </div>
-                <div class="flex-1 rounded-lg bg-linear-to-r from-amber-50 to-amber-100 p-2 md:rounded-lg md:p-3.5">
+                <div class="rounded-lg bg-linear-to-r from-amber-50 to-amber-100 p-2 md:rounded-lg md:p-3.5">
                     <p class="text-[10px] font-medium text-amber-800 md:text-[9px] md:font-semibold">Pengeluaran</p>
                     <p class="mt-0.5 text-sm font-extrabold text-amber-700 md:mt-1 md:text-lg">{{ compactCurrency(props.financeOverview.expense_total) }}</p>
                 </div>
@@ -336,7 +343,7 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                     </div>
                 </div>
 
-                <div class="mt-2 flex gap-2 md:mt-3.5 md:gap-5">
+                <div class="mt-2 flex flex-col gap-3 md:mt-3.5 md:gap-5 lg:flex-row">
                     <!-- Mini pie -->
                     <div class="flex shrink-0 flex-col items-center md:justify-center">
                         <div class="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full md:h-40 md:w-40" :style="pieStyle">
@@ -445,6 +452,10 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                     <div>
                         <p class="text-xs font-bold uppercase tracking-wider text-teal-700">Tren Pendapatan</p>
                         <h3 class="mt-1 text-2xl font-bold text-slate-950">Tracker keuangan bulan ini</h3>
+                        <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                            <TrendingUp class="size-3.5" />
+                            Hunian {{ occupancyRate }}%
+                        </div>
                     </div>
                     <div class="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 ring-1 ring-slate-200">
                         <CalendarDays class="size-5 text-slate-500" />
@@ -552,8 +563,9 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                                         <p class="text-sm font-bold text-slate-950">{{ compactCurrency(item.value) }}</p>
                                     </div>
                                 </div>
-                                <div v-if="activeBreakdown.length === 0" class="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                                    Belum ada data untuk periode ini.
+                                <div v-if="activeBreakdown.length === 0" class="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                                    <p class="font-semibold text-slate-700">Belum ada data untuk periode ini.</p>
+                                    <p class="text-xs text-slate-500">Data akan muncul setelah transaksi masuk atau pengeluaran dicatat.</p>
                                 </div>
                             </div>
                         </div>

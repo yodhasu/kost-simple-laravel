@@ -316,7 +316,7 @@ const deactivateTenant = async () => {
         </div>
 
         <!-- Mobile compact header -->
-        <div class="flex items-center justify-between lg:hidden">
+        <div class="sticky top-2 z-10 flex items-center justify-between rounded-xl bg-white/90 px-2 py-1.5 shadow-sm backdrop-blur lg:hidden">
             <div>
                 <h2 class="text-sm font-bold text-slate-950 md:text-xl">Penyewa <span class="font-normal text-slate-500">({{ pagination.total }})</span></h2>
             </div>
@@ -478,7 +478,7 @@ const deactivateTenant = async () => {
             <div
                 v-for="tenant in props.tenants"
                 :key="'m-' + tenant.id"
-                class="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/70 transition hover:bg-slate-50 md:gap-4 md:rounded-2xl md:px-5 md:py-4"
+                class="flex items-center gap-2.5 rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/70 transition hover:bg-slate-50 active:scale-[0.995] md:gap-4 md:rounded-2xl md:px-5 md:py-4"
                 @click="openDetailModal(tenant)"
             >
                 <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-xs font-semibold text-teal-700 md:size-10 md:rounded-xl md:text-base">
@@ -491,12 +491,13 @@ const deactivateTenant = async () => {
                     </div>
                     <div class="mt-0.5 flex items-center justify-between gap-2 md:mt-1.5">
                         <p class="truncate text-[10px] text-slate-500 md:text-base">{{ tenant.kostName }}</p>
-                        <p class="shrink-0 text-[10px] font-medium text-slate-700 md:text-base">{{ currency(tenant.rentPrice) }}</p>
+                        <p class="shrink-0 text-[10px] font-semibold text-slate-800 md:text-base">{{ currency(tenant.rentPrice) }}</p>
                     </div>
                 </div>
             </div>
             <div v-if="props.tenants.length === 0" class="rounded-xl bg-white px-4 py-6 text-center text-xs text-slate-500 ring-1 ring-slate-200/70 md:rounded-2xl md:py-10 md:text-base">
-                Tidak ada data penyewa.
+                <p class="font-semibold text-slate-700">Tidak ada data penyewa.</p>
+                <p class="mt-1 text-[11px] text-slate-500 md:text-sm">Coba ubah filter atau tambahkan penyewa baru.</p>
             </div>
             <!-- Mobile pagination -->
             <div class="flex items-center justify-between pt-1 text-[10px] text-slate-500 md:pt-2.5 md:text-base">
@@ -527,7 +528,7 @@ const deactivateTenant = async () => {
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-left">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <thead class="bg-slate-50 text-xs uppercase tracking-[0.16em] text-slate-500">
                         <tr>
                             <th class="px-6 py-4">Nama Penyewa</th>
                             <th class="px-6 py-4">Nomor HP</th>
@@ -557,9 +558,9 @@ const deactivateTenant = async () => {
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4">{{ tenant.phone }}</td>
-                            <td class="px-6 py-4">{{ tenant.kostName }}</td>
-                            <td class="px-6 py-4">{{ tenant.regionName }}</td>
+                            <td class="px-6 py-4 font-medium text-slate-700">{{ tenant.phone }}</td>
+                            <td class="px-6 py-4 font-medium text-slate-800">{{ tenant.kostName }}</td>
+                            <td class="px-6 py-4 text-slate-700">{{ tenant.regionName }}</td>
                             <td class="px-6 py-4">{{ formatDate(tenant.startDate) }}</td>
                             <td class="px-6 py-4 font-medium text-slate-900">{{ currency(tenant.rentPrice) }}</td>
                             <td class="px-6 py-4">
@@ -568,17 +569,17 @@ const deactivateTenant = async () => {
                                 </span>
                             </td>
                             <td class="px-6 py-4">
-                                <div class="flex gap-2">
+                                <div class="flex flex-wrap gap-2">
                                     <button
                                         type="button"
-                                        class="rounded-xl bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700"
+                                        class="rounded-xl bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 ring-1 ring-sky-100 transition hover:bg-sky-100"
                                         @click.stop="openEditModal(tenant)"
                                     >
                                         Edit
                                     </button>
                                     <button
                                         type="button"
-                                        class="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                                        class="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 ring-1 ring-rose-100 transition hover:bg-rose-100"
                                         @click.stop="confirmDelete(tenant)"
                                     >
                                         Hapus
