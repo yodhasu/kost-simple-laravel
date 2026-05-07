@@ -352,7 +352,7 @@ const deactivateTenant = async () => {
             <div class="flex items-center gap-2 md:gap-4">
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 md:rounded-xl md:px-4 md:py-2.5 md:text-base"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 md:rounded-xl md:px-4 md:py-2.5 md:text-base"
                     @click="mobileFilterOpen = !mobileFilterOpen"
                 >
                     <Search class="size-3 md:size-4" />
@@ -361,7 +361,7 @@ const deactivateTenant = async () => {
                 </button>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1.5 text-xs font-semibold text-white md:rounded-xl md:px-4 md:py-2.5 md:text-base"
+                    class="inline-flex min-h-10 items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white md:rounded-xl md:px-4 md:py-2.5 md:text-base"
                     @click="openCreateModal"
                 >
                     <Plus class="size-3 md:size-4" />
@@ -378,20 +378,20 @@ const deactivateTenant = async () => {
                     v-model="search"
                     type="text"
                     placeholder="Cari nama / HP..."
-                    class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:py-2.5 md:pl-10 md:text-base"
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 py-3 pl-8 pr-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:py-2.5 md:pl-10 md:text-base"
                     @keydown.enter.prevent="applyFilters"
                 />
             </div>
             <div class="grid grid-cols-2 gap-2 md:gap-4">
                 <select
                     v-model="regionId"
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:px-4 md:py-2.5 md:text-base"
+                    class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:px-4 md:py-2.5 md:text-base"
                 >
                     <option v-for="region in regions" :key="region.id" :value="region.id">{{ region.name }}</option>
                 </select>
                 <select
                     v-model="status"
-                    class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:px-4 md:py-2.5 md:text-base"
+                    class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-xl md:px-4 md:py-2.5 md:text-base"
                 >
                     <option value="">Semua Status</option>
                     <option value="LUNAS">LUNAS</option>
@@ -403,8 +403,8 @@ const deactivateTenant = async () => {
                 </select>
             </div>
             <div class="flex gap-2.5 md:mt-2 md:gap-4">
-                <button type="button" class="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="resetFilters">{{ isResettingFilters ? 'Mereset...' : 'Reset' }}</button>
-                <button type="button" class="flex-1 rounded-lg bg-teal-600 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-400 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="applyFilters">{{ isApplyingFilters ? 'Menerapkan...' : 'Terapkan' }}</button>
+                <button type="button" class="flex-1 rounded-lg border border-slate-200 py-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="resetFilters">{{ isResettingFilters ? 'Mereset...' : 'Reset' }}</button>
+                <button type="button" class="flex-1 rounded-lg bg-teal-600 py-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-400 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="applyFilters">{{ isApplyingFilters ? 'Menerapkan...' : 'Terapkan' }}</button>
             </div>
         </div>
 
@@ -534,11 +534,11 @@ const deactivateTenant = async () => {
             <div class="flex items-center justify-between pt-1 text-[10px] text-slate-500 md:pt-2.5 md:text-base">
                 <span>{{ pageStart }}-{{ pageEnd }} / {{ pagination.total }}</span>
                 <div class="flex gap-1 md:gap-2">
-                    <button type="button" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-40 md:rounded-lg md:px-4 md:py-2 md:text-base" :disabled="pagination.currentPage <= 1" @click="visitTenants(pagination.currentPage - 1)">
+                    <button type="button" class="min-h-10 min-w-10 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40 md:rounded-lg md:px-4 md:py-2 md:text-base" :disabled="pagination.currentPage <= 1" @click="visitTenants(pagination.currentPage - 1)">
                         <ChevronLeft class="size-3 md:size-4" />
                     </button>
                     <span class="inline-flex items-center px-2 text-[10px] font-semibold text-slate-700 md:px-2.5 md:text-base">{{ pagination.currentPage }}/{{ totalPages }}</span>
-                    <button type="button" class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-40 md:rounded-lg md:px-4 md:py-2 md:text-base" :disabled="pagination.currentPage >= totalPages" @click="visitTenants(pagination.currentPage + 1)">
+                    <button type="button" class="min-h-10 min-w-10 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40 md:rounded-lg md:px-4 md:py-2 md:text-base" :disabled="pagination.currentPage >= totalPages" @click="visitTenants(pagination.currentPage + 1)">
                         <ChevronRight class="size-3 md:size-4" />
                     </button>
                 </div>

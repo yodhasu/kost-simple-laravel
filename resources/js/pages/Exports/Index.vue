@@ -105,7 +105,7 @@ const executeExport = () => {
                     <Input
                         v-model="form.startDate"
                         type="date"
-                        class="w-full rounded-lg border border-slate-200 bg-white! px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                        class="w-full rounded-lg border border-slate-200 bg-white! px-2.5 py-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                     />
                 </label>
 
@@ -117,7 +117,7 @@ const executeExport = () => {
                     <Input
                         v-model="form.endDate"
                         type="date"
-                        class="w-full rounded-lg border border-slate-200 bg-white! px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                        class="w-full rounded-lg border border-slate-200 bg-white! px-2.5 py-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                     />
                 </label>
             </div>
@@ -133,7 +133,7 @@ const executeExport = () => {
                 </span>
                 <select
                     v-model="form.regionId"
-                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-3 text-xs text-slate-700 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                 >
                     <option v-for="region in regions" :key="region.id" :value="region.id">
                         {{ region.name }}
@@ -148,9 +148,9 @@ const executeExport = () => {
                     <label
                         v-for="item in props.dataTypes"
                         :key="item.value"
-                        class="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-xs text-slate-700 transition-colors has-[:checked]:border-teal-300 has-[:checked]:bg-teal-50/60 md:gap-2.5 md:rounded-2xl md:px-4 md:py-4 md:text-base"
+                        class="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-xs text-slate-700 transition-colors has-[:checked]:border-teal-300 has-[:checked]:bg-teal-50/60 md:min-h-0 md:gap-2.5 md:rounded-2xl md:px-4 md:py-4 md:text-base"
                     >
-                        <input v-model="form.dataTypes" :value="item.value" type="checkbox" class="size-3.5 accent-teal-600 md:size-4" />
+                        <input v-model="form.dataTypes" :value="item.value" type="checkbox" class="size-4 accent-teal-600 md:size-4" />
                         <span class="font-medium">{{ item.label }}</span>
                     </label>
                 </div>
@@ -163,7 +163,7 @@ const executeExport = () => {
                 </p>
                 <button
                     type="button"
-                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 md:w-auto md:min-w-40 md:rounded-2xl md:px-5 md:py-2.5 md:text-base"
+                    class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 md:min-h-0 md:w-auto md:min-w-40 md:rounded-2xl md:px-5 md:py-2.5 md:text-base"
                     :class="canExport && !exporting ? 'bg-teal-600 hover:bg-teal-700 active:scale-[0.99]' : 'bg-slate-300 text-slate-500'"
                     :disabled="!canExport || exporting"
                     @click="requestExport"

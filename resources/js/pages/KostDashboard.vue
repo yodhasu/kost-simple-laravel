@@ -193,7 +193,7 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                     v-model="selectedRegion"
                     :disabled="isRegionLoading"
                     :aria-busy="isRegionLoading"
-                    class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 md:rounded-md md:px-2.5 md:py-1.5 md:text-sm"
+                    class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2.5 text-xs font-medium text-slate-700 focus:border-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 md:rounded-md md:px-2.5 md:py-1.5 md:text-sm"
                 >
                     <option v-for="region in regions" :key="region.id" :value="region.id">
                         {{ region.name }}
@@ -334,7 +334,7 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                     <div class="inline-flex rounded-md bg-slate-100 p-0.5 md:rounded-sm md:p-1">
                         <button
                             type="button"
-                            class="rounded px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
+                            class="min-h-10 rounded px-2.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:min-h-0 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
                             :class="financeTab === 'income' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50 active:bg-slate-200'"
                             @click="financeTab = 'income'"
                         >
@@ -342,7 +342,7 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                         </button>
                         <button
                             type="button"
-                            class="rounded px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
+                            class="min-h-10 rounded px-2.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:min-h-0 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
                             :class="financeTab === 'expense' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50 active:bg-slate-200'"
                             @click="financeTab = 'expense'"
                         >

@@ -250,7 +250,7 @@ const executeDeleteAdmin = () => {
             <div class="inline-flex rounded-lg bg-slate-100 p-0.5 md:rounded-3xl md:p-1.5">
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition md:gap-2 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition md:min-h-0 md:gap-2 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                     :class="activeTab === 'region' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600'"
                     @click="activeTab = 'region'"
                 >
@@ -259,7 +259,7 @@ const executeDeleteAdmin = () => {
                 </button>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition md:gap-2 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition md:min-h-0 md:gap-2 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                     :class="activeTab === 'admin' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600'"
                     @click="activeTab = 'admin'"
                 >
@@ -272,7 +272,7 @@ const executeDeleteAdmin = () => {
             <div v-if="activeTab === 'region'" class="mt-3 space-y-2 md:mt-5 md:space-y-5">
                 <div class="flex items-center justify-between gap-2">
                     <h3 class="text-xs font-bold text-slate-950 md:text-xl">Region <span class="font-normal text-slate-500">({{ regions.length }})</span></h3>
-                    <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1.5 text-xs font-semibold text-white md:gap-2 md:rounded-xl md:px-4 md:py-2.5 md:text-base" @click="openRegionCreate">
+                    <button type="button" class="inline-flex min-h-10 items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white md:gap-2 md:rounded-xl md:px-4 md:py-2.5 md:text-base" @click="openRegionCreate">
                         <Plus class="size-3 md:size-4" />
                         <span class="hidden md:inline">Tambah Region</span>
                         <span class="md:hidden">Baru</span>
@@ -295,8 +295,8 @@ const executeDeleteAdmin = () => {
                             <p class="mt-0.5 text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.totalKosts }} kost · {{ item.activeAdmins }} admin</p>
                         </div>
                         <div class="flex shrink-0 gap-1 md:gap-2">
-                            <button type="button" class="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startRegionEdit(item)">Edit</button>
-                            <button type="button" class="rounded-md bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteRegion(item)">Hapus</button>
+                            <button type="button" class="min-h-10 rounded-md bg-sky-50 px-2.5 py-2 text-xs font-semibold text-sky-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startRegionEdit(item)">Edit</button>
+                            <button type="button" class="min-h-10 rounded-md bg-rose-50 px-2.5 py-2 text-xs font-semibold text-rose-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteRegion(item)">Hapus</button>
                         </div>
                     </div>
                     <div v-if="regions.length === 0" class="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs text-slate-500 md:rounded-2xl md:py-10 md:text-base">
@@ -358,7 +358,7 @@ const executeDeleteAdmin = () => {
             <div v-else class="mt-3 space-y-2 md:mt-5 md:space-y-5">
                 <div class="flex items-center justify-between gap-2">
                     <h3 class="text-xs font-bold text-slate-950 md:text-xl">Admin <span class="font-normal text-slate-500">({{ admins.length }})</span></h3>
-                    <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2.5 py-1.5 text-xs font-semibold text-white md:gap-2 md:rounded-xl md:px-4 md:py-2.5 md:text-base" @click="openAdminCreate">
+                    <button type="button" class="inline-flex min-h-10 items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white md:gap-2 md:rounded-xl md:px-4 md:py-2.5 md:text-base" @click="openAdminCreate">
                         <Plus class="size-3 md:size-4" />
                         <span class="hidden md:inline">Tambah Admin</span>
                         <span class="md:hidden">Baru</span>
@@ -381,8 +381,8 @@ const executeDeleteAdmin = () => {
                             <p class="mt-0.5 truncate text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.email }} · {{ item.role.toUpperCase() }}</p>
                         </div>
                         <div class="flex shrink-0 gap-1 md:gap-2">
-                            <button type="button" class="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startAdminEdit(item)">Edit</button>
-                            <button type="button" class="rounded-md bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteAdmin(item)">Hapus</button>
+                            <button type="button" class="min-h-10 rounded-md bg-sky-50 px-2.5 py-2 text-xs font-semibold text-sky-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startAdminEdit(item)">Edit</button>
+                            <button type="button" class="min-h-10 rounded-md bg-rose-50 px-2.5 py-2 text-xs font-semibold text-rose-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteAdmin(item)">Hapus</button>
                         </div>
                     </div>
                     <div v-if="admins.length === 0" class="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs text-slate-500 md:rounded-2xl md:py-10 md:text-base">

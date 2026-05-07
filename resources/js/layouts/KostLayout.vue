@@ -212,7 +212,7 @@ watch(dashboardSelectedRegion, (regionId, previousRegionId) => {
                     <!-- Mobile logout button -->
                     <button
                         type="button"
-                        class="flex size-8 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition active:scale-95 lg:hidden"
+                        class="flex size-10 items-center justify-center rounded-xl bg-rose-50 text-rose-500 transition active:scale-95 lg:hidden"
                         @click="logoutConfirmOpen = true"
                     >
                         <LogOut class="size-4" />
