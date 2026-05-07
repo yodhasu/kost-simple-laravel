@@ -49,8 +49,10 @@ const regionAssignmentOpen = ref(false);
 const regionSearch = ref('');
 const confirmDeleteRegionOpen = ref(false);
 const confirmDeleteAdminOpen = ref(false);
+const confirmPurgeRegionOpen = ref(false);
 const pendingDeleteRegion = ref<RegionSummary | null>(null);
 const pendingDeleteAdmin = ref<AdminSummary | null>(null);
+const pendingPurgeRegion = ref<RegionSummary | null>(null);
 
 const regionForm = useForm({
     name: '',
@@ -152,6 +154,25 @@ const executeDeleteRegion = () => {
         onFinish: () => {
             confirmDeleteRegionOpen.value = false;
             pendingDeleteRegion.value = null;
+        },
+    });
+};
+
+const purgeRegion = (region: RegionSummary) => {
+    pendingPurgeRegion.value = region;
+    confirmPurgeRegionOpen.value = true;
+};
+
+const executePurgeRegion = () => {
+    if (!pendingPurgeRegion.value) {
+        return;
+    }
+
+    router.post(`/settings/regions/${pendingPurgeRegion.value.id}/purge?tab=region`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            confirmPurgeRegionOpen.value = false;
+            pendingPurgeRegion.value = null;
         },
     });
 };
@@ -295,6 +316,7 @@ const executeDeleteAdmin = () => {
                             <p class="mt-0.5 text-[10px] text-slate-500 md:mt-1.5 md:text-base">{{ item.totalKosts }} kost · {{ item.activeAdmins }} admin</p>
                         </div>
                         <div class="flex shrink-0 gap-1 md:gap-2">
+                            <button type="button" class="min-h-10 rounded-md bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="purgeRegion(item)">Purge</button>
                             <button type="button" class="min-h-10 rounded-md bg-sky-50 px-2.5 py-2 text-xs font-semibold text-sky-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="startRegionEdit(item)">Edit</button>
                             <button type="button" class="min-h-10 rounded-md bg-rose-50 px-2.5 py-2 text-xs font-semibold text-rose-700 md:min-h-0 md:rounded-lg md:px-4 md:py-2 md:text-base" @click="deleteRegion(item)">Hapus</button>
                         </div>
@@ -326,6 +348,13 @@ const executeDeleteAdmin = () => {
                                 <td class="px-6 py-4">{{ item.activeAdmins }}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+                                            @click="purgeRegion(item)"
+                                        >
+                                            Purge
+                                        </button>
                                         <button
                                             type="button"
                                             class="inline-flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700"
@@ -641,6 +670,16 @@ const executeDeleteAdmin = () => {
                 </Button>
             </template>
         </BaseModal>
+
+        <ConfirmModal
+            :open="confirmPurgeRegionOpen"
+            title="Purge Data Region"
+            :description="`Yakin purge data region '${pendingPurgeRegion?.name ?? ''}'? Semua data tenant dan transaksi pada region ini akan dihapus permanen.`"
+            confirm-label="Ya, Purge"
+            variant="danger"
+            @update:open="confirmPurgeRegionOpen = $event"
+            @confirm="executePurgeRegion"
+        />
 
         <ConfirmModal
             :open="confirmDeleteRegionOpen"
