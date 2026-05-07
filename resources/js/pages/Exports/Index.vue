@@ -44,6 +44,7 @@ const canExport = computed(
 );
 
 const confirmExportOpen = ref(false);
+const exporting = ref(false);
 
 const requestExport = () => {
     exportError.value = '';
@@ -57,6 +58,8 @@ const requestExport = () => {
 };
 
 const executeExport = () => {
+    exporting.value = true;
+    exportError.value = '';
     confirmExportOpen.value = false;
 
     const params = new URLSearchParams({
@@ -118,7 +121,9 @@ const executeExport = () => {
                     />
                 </label>
             </div>
-            <p v-if="dateRangeError" class="mt-1 text-xs font-medium text-rose-600 md:mt-2 md:text-base">{{ dateRangeError }}</p>
+            <div v-if="submitted && dateRangeError" class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 md:rounded-2xl md:px-4 md:py-3 md:text-base">
+                {{ dateRangeError }}
+            </div>
 
             <!-- Region -->
             <label class="mt-3 block md:mt-5">
@@ -128,7 +133,7 @@ const executeExport = () => {
                 </span>
                 <select
                     v-model="form.regionId"
-                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200 md:rounded-2xl md:px-4 md:py-2.5 md:text-base"
                 >
                     <option v-for="region in regions" :key="region.id" :value="region.id">
                         {{ region.name }}
@@ -143,7 +148,7 @@ const executeExport = () => {
                     <label
                         v-for="item in props.dataTypes"
                         :key="item.value"
-                        class="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-xs text-slate-700 md:gap-2.5 md:rounded-2xl md:px-4 md:py-4 md:text-base"
+                        class="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-xs text-slate-700 transition-colors has-[:checked]:border-teal-300 has-[:checked]:bg-teal-50/60 md:gap-2.5 md:rounded-2xl md:px-4 md:py-4 md:text-base"
                     >
                         <input v-model="form.dataTypes" :value="item.value" type="checkbox" class="size-3.5 accent-teal-600 md:size-4" />
                         <span class="font-medium">{{ item.label }}</span>
@@ -158,17 +163,17 @@ const executeExport = () => {
                 </p>
                 <button
                     type="button"
-                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white md:w-auto md:min-w-40 md:rounded-2xl md:px-5 md:py-2.5 md:text-base"
-                    :class="canExport ? 'bg-teal-600' : 'bg-slate-300'"
-                    :disabled="!canExport"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 md:w-auto md:min-w-40 md:rounded-2xl md:px-5 md:py-2.5 md:text-base"
+                    :class="canExport && !exporting ? 'bg-teal-600 hover:bg-teal-700 active:scale-[0.99]' : 'bg-slate-300 text-slate-500'"
+                    :disabled="!canExport || exporting"
                     @click="requestExport"
                 >
                     <Download class="size-3.5 md:size-4" />
-                    Unduh Data
+                    {{ exporting ? 'Menyiapkan...' : 'Unduh Data' }}
                 </button>
             </div>
-            <p v-if="exportError" class="mt-2 text-xs text-rose-600 md:mt-2.5 md:text-base">{{ exportError }}</p>
-            <p v-if="submitted" class="mt-2 text-xs font-medium text-emerald-700 md:mt-2.5 md:text-base">
+            <div v-if="exportError" class="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 md:mt-2.5 md:rounded-2xl md:px-4 md:py-3 md:text-base">{{ exportError }}</div>
+            <p v-if="submitted && canExport" class="mt-2 text-xs font-medium text-emerald-700 md:mt-2.5 md:text-base">
                 Export dikirim ke endpoint Laravel. Jika data valid, browser akan langsung mengunduh satu file `.xlsx`
                 berisi sheet sesuai pilihan Anda.
             </p>

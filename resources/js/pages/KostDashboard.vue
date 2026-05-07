@@ -41,6 +41,7 @@ const props = defineProps<{
 }>();
 
 const selectedRegion = ref(props.selectedRegionId);
+const isRegionLoading = ref(false);
 const selectedRegionName = computed(() => {
     if (!selectedRegion.value || selectedRegion.value === 'all') {
         return 'Semua Region';
@@ -162,6 +163,8 @@ watch(selectedRegion, (regionId, previousRegionId) => {
         return;
     }
 
+    isRegionLoading.value = true;
+
     router.visit('/dashboard', {
         method: 'get',
         data: {
@@ -171,6 +174,9 @@ watch(selectedRegion, (regionId, previousRegionId) => {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        onFinish: () => {
+            isRegionLoading.value = false;
+        },
     });
 });
 
@@ -185,7 +191,9 @@ watch(selectedRegion, (regionId, previousRegionId) => {
             <div class="flex items-center gap-2 px-0.5 md:px-1">
                 <select
                     v-model="selectedRegion"
-                    class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-teal-500 focus:outline-none md:rounded-md md:px-2.5 md:py-1.5 md:text-sm"
+                    :disabled="isRegionLoading"
+                    :aria-busy="isRegionLoading"
+                    class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 md:rounded-md md:px-2.5 md:py-1.5 md:text-sm"
                 >
                     <option v-for="region in regions" :key="region.id" :value="region.id">
                         {{ region.name }}
@@ -326,16 +334,16 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                     <div class="inline-flex rounded-md bg-slate-100 p-0.5 md:rounded-sm md:p-1">
                         <button
                             type="button"
-                            class="rounded px-2 py-1 text-[10px] font-semibold transition md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
-                            :class="financeTab === 'income' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50'"
+                            class="rounded px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
+                            :class="financeTab === 'income' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50 active:bg-slate-200'"
                             @click="financeTab = 'income'"
                         >
                             Income
                         </button>
                         <button
                             type="button"
-                            class="rounded px-2 py-1 text-[10px] font-semibold transition md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
-                            :class="financeTab === 'expense' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50'"
+                            class="rounded px-2 py-1 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 md:rounded-sm md:px-2.5 md:py-1 md:text-xs"
+                            :class="financeTab === 'expense' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200/50 active:bg-slate-200'"
                             @click="financeTab = 'expense'"
                         >
                             Expense
@@ -527,8 +535,8 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                         <div class="flex items-center justify-between border-b border-slate-100 p-6">
                             <h4 class="text-lg font-bold text-slate-950">Detail {{ financeTab === 'income' ? 'Penghasilan' : 'Pengeluaran' }}</h4>
                             <div class="flex rounded-full bg-slate-100 p-1">
-                                <button class="rounded-full px-4 py-1.5 text-sm font-medium transition-all" :class="financeTab === 'income' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'" @click="financeTab = 'income'">Penghasilan</button>
-                                <button class="rounded-full px-4 py-1.5 text-sm font-medium transition-all" :class="financeTab === 'expense' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'" @click="financeTab = 'expense'">Pengeluaran</button>
+                                <button class="rounded-full px-4 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50" :class="financeTab === 'income' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-slate-200/70'" @click="financeTab = 'income'">Penghasilan</button>
+                                <button class="rounded-full px-4 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50" :class="financeTab === 'expense' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 active:bg-slate-200/70'" @click="financeTab = 'expense'">Pengeluaran</button>
                             </div>
                         </div>
 
@@ -563,9 +571,9 @@ watch(selectedRegion, (regionId, previousRegionId) => {
                                         <p class="text-sm font-bold text-slate-950">{{ compactCurrency(item.value) }}</p>
                                     </div>
                                 </div>
-                                <div v-if="activeBreakdown.length === 0" class="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                                    <p class="font-semibold text-slate-700">Belum ada data untuk periode ini.</p>
-                                    <p class="text-xs text-slate-500">Data akan muncul setelah transaksi masuk atau pengeluaran dicatat.</p>
+                                <div v-if="activeBreakdown.length === 0" class="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500" role="status" aria-live="polite">
+                                    <p class="font-semibold text-slate-700">Belum ada data {{ financeTab === 'income' ? 'penghasilan' : 'pengeluaran' }} untuk periode ini.</p>
+                                    <p class="text-xs text-slate-500">Data akan muncul setelah transaksi dicatat.</p>
                                 </div>
                             </div>
                         </div>

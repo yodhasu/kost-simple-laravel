@@ -66,6 +66,8 @@ const activeTenant = ref<Tenant | null>(null);
 const confirmDeleteOpen = ref(false);
 const actionError = ref('');
 const mobileFilterOpen = ref(false);
+const isApplyingFilters = ref(false);
+const isResettingFilters = ref(false);
 
 const hasActiveFilters = computed(() =>
     Boolean(search.value.trim()) || Boolean(status.value) || (regionId.value && regionId.value !== 'all'),
@@ -132,7 +134,7 @@ const statusTone = (value: string) => {
     }
 };
 
-const visitTenants = (page = 1) => {
+const visitTenants = (page = 1, onFinish?: () => void) => {
     router.get('/tenants', {
         page,
         page_size: props.pagination.pageSize,
@@ -144,18 +146,25 @@ const visitTenants = (page = 1) => {
         preserveScroll: true,
         replace: true,
         only: ['filters', 'tenants', 'pagination', 'kostOptions'],
+        onFinish,
     });
 };
 
 const applyFilters = () => {
-    visitTenants(1);
+    isApplyingFilters.value = true;
+    visitTenants(1, () => {
+        isApplyingFilters.value = false;
+    });
 };
 
 const resetFilters = () => {
+    isResettingFilters.value = true;
     search.value = '';
     status.value = '';
     regionId.value = 'all';
-    visitTenants(1);
+    visitTenants(1, () => {
+        isResettingFilters.value = false;
+    });
 };
 
 const openCreateModal = () => {

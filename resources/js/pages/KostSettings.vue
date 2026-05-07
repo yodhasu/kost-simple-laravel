@@ -461,11 +461,11 @@ const executeDeleteAdmin = () => {
                 </div>
             </form>
             <template #footer>
-                <Button type="button" variant="outline" :disabled="regionForm.processing" @click="resetRegionForm">
+                <Button type="button" variant="outline" :disabled="regionForm.processing" class="focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1" @click="resetRegionForm">
                     Batal
                 </Button>
-                <Button type="submit" form="region-modal-form" :disabled="regionForm.processing">
-                    {{ isEditingRegion ? 'Simpan Perubahan' : 'Tambah Region' }}
+                <Button type="submit" form="region-modal-form" :disabled="regionForm.processing" class="focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1" :class="regionForm.processing ? 'opacity-80' : 'hover:brightness-95 active:scale-[0.99]'">
+                    {{ regionForm.processing ? 'Menyimpan...' : (isEditingRegion ? 'Simpan Perubahan' : 'Tambah Region') }}
                 </Button>
             </template>
         </BaseModal>
@@ -507,7 +507,7 @@ const executeDeleteAdmin = () => {
                         <select
                             id="modal-admin-role"
                             v-model="adminForm.role"
-                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
                         >
                             <option value="admin">Admin</option>
                             <option value="it">IT</option>
@@ -546,7 +546,7 @@ const executeDeleteAdmin = () => {
                     <div class="relative">
                         <button
                             type="button"
-                            class="flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition"
+                            class="flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2"
                             :class="isItRole
                                 ? 'cursor-not-allowed border-slate-900/20 bg-slate-100 text-slate-400'
                                 : 'border-slate-900/50 bg-white text-slate-950 hover:border-teal-400'"
@@ -590,7 +590,7 @@ const executeDeleteAdmin = () => {
                                     v-for="region in filteredRegionOptions"
                                     :key="region.id"
                                     type="button"
-                                    class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition"
+                                    class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1"
                                     :class="adminForm.region_ids.includes(region.id) ? 'bg-teal-50 text-teal-700' : 'bg-white text-slate-700 hover:bg-slate-50'"
                                     @click="toggleAdminRegion(region.id)"
                                 >
@@ -618,7 +618,7 @@ const executeDeleteAdmin = () => {
                                     <X class="size-3.5" />
                                     Kosongkan pilihan
                                 </button>
-                                <Button type="button" variant="outline" size="sm" @click="regionAssignmentOpen = false">
+                                <Button type="button" variant="outline" size="sm" class="focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1" @click="regionAssignmentOpen = false">
                                     Selesai
                                 </Button>
                             </div>
@@ -633,11 +633,11 @@ const executeDeleteAdmin = () => {
 
             </form>
             <template #footer>
-                <Button type="button" variant="outline" :disabled="adminForm.processing" @click="resetAdminForm">
+                <Button type="button" variant="outline" :disabled="adminForm.processing" class="focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1" @click="resetAdminForm">
                     Batal
                 </Button>
-                <Button type="submit" form="admin-modal-form" :disabled="adminForm.processing">
-                    {{ isEditingAdmin ? 'Simpan Perubahan' : 'Tambah Admin' }}
+                <Button type="submit" form="admin-modal-form" :disabled="adminForm.processing" class="focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1" :class="adminForm.processing ? 'opacity-80' : 'hover:brightness-95 active:scale-[0.99]'">
+                    {{ adminForm.processing ? 'Menyimpan...' : (isEditingAdmin ? 'Simpan Perubahan' : 'Tambah Admin') }}
                 </Button>
             </template>
         </BaseModal>

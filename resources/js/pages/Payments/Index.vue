@@ -354,7 +354,7 @@ const handleKostDelete = async () => {
                     v-for="action in quickActions"
                     :key="'m-' + action.title"
                     type="button"
-                    class="flex flex-col items-center gap-1.5 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70 transition active:scale-95 md:gap-2.5 md:rounded-2xl md:p-5"
+                    class="flex flex-col items-center gap-1.5 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200/70 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 md:gap-2.5 md:rounded-2xl md:p-5"
                     @click="openActionModal(action)"
                 >
                     <div
@@ -383,7 +383,7 @@ const handleKostDelete = async () => {
                     <p class="mt-2 text-sm leading-6 text-slate-600">{{ action.description }}</p>
                     <button
                         type="button"
-                        class="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                        class="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2"
                         :class="actionTone(action.icon).button"
                         @click="openActionModal(action)"
                     >
@@ -447,7 +447,7 @@ const handleKostDelete = async () => {
                         <Label class="text-slate-900">Filter Region</Label>
                         <select
                             v-model="selectedRegionId"
-                            class="rounded-2xl border border-slate-900/50 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-600"
+                            class="rounded-2xl border border-slate-900/50 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-200"
                         >
                             <option v-for="region in regions" :key="region.id" :value="region.id" class="text-slate-900">
                                 {{ region.name }}
@@ -457,7 +457,7 @@ const handleKostDelete = async () => {
 
                     <div class="grid gap-2">
                         <Label class="text-slate-900">Cari Kost</Label>
-                        <div class="flex items-center gap-2 rounded-2xl border border-slate-900/50 bg-white px-4 py-3">
+                        <div class="flex items-center gap-2 rounded-2xl border border-slate-900/50 bg-white px-4 py-3 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-200">
                             <Search class="size-4 text-slate-400" />
                             <input
                                 v-model="kostSearch"
@@ -474,7 +474,7 @@ const handleKostDelete = async () => {
                         v-for="kost in filteredKostOptions"
                         :key="kost.id"
                         type="button"
-                        class="flex w-full items-center justify-between rounded-2xl border border-slate-900/10 bg-white px-4 py-4 text-left transition hover:border-teal-300 hover:bg-teal-50/50"
+                        class="flex w-full items-center justify-between rounded-2xl border border-slate-900/10 bg-white px-4 py-4 text-left transition hover:border-teal-300 hover:bg-teal-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2"
                         @click="selectedKost = kost"
                     >
                         <div>
