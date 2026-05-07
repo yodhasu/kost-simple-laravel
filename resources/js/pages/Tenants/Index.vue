@@ -68,6 +68,7 @@ const actionError = ref('');
 const mobileFilterOpen = ref(false);
 const isApplyingFilters = ref(false);
 const isResettingFilters = ref(false);
+const isTenantRequestInFlight = ref(false);
 
 const hasActiveFilters = computed(() =>
     Boolean(search.value.trim()) || Boolean(status.value) || (regionId.value && regionId.value !== 'all'),
@@ -90,6 +91,8 @@ const pageEnd = computed(() =>
         ? 0
         : pageStart.value + props.tenants.length - 1,
 );
+
+const isFilterBusy = computed(() => isTenantRequestInFlight.value || isApplyingFilters.value || isResettingFilters.value);
 
 const visiblePages = computed(() => {
     const current = props.pagination.currentPage;
@@ -135,6 +138,12 @@ const statusTone = (value: string) => {
 };
 
 const visitTenants = (page = 1, onFinish?: () => void) => {
+    if (isTenantRequestInFlight.value) {
+        return;
+    }
+
+    isTenantRequestInFlight.value = true;
+
     router.get('/tenants', {
         page,
         page_size: props.pagination.pageSize,
@@ -146,11 +155,18 @@ const visitTenants = (page = 1, onFinish?: () => void) => {
         preserveScroll: true,
         replace: true,
         only: ['filters', 'tenants', 'pagination', 'kostOptions'],
-        onFinish,
+        onFinish: () => {
+            isTenantRequestInFlight.value = false;
+            onFinish?.();
+        },
     });
 };
 
 const applyFilters = () => {
+    if (isTenantRequestInFlight.value) {
+        return;
+    }
+
     isApplyingFilters.value = true;
     visitTenants(1, () => {
         isApplyingFilters.value = false;
@@ -158,6 +174,10 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
+    if (isTenantRequestInFlight.value) {
+        return;
+    }
+
     isResettingFilters.value = true;
     search.value = '';
     status.value = '';
@@ -383,8 +403,8 @@ const deactivateTenant = async () => {
                 </select>
             </div>
             <div class="flex gap-2.5 md:mt-2 md:gap-4">
-                <button type="button" class="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 md:rounded-xl md:py-2.5 md:text-base" @click="resetFilters">Reset</button>
-                <button type="button" class="flex-1 rounded-lg bg-teal-600 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 md:rounded-xl md:py-2.5 md:text-base" @click="applyFilters">Terapkan</button>
+                <button type="button" class="flex-1 rounded-lg border border-slate-200 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="resetFilters">{{ isResettingFilters ? 'Mereset...' : 'Reset' }}</button>
+                <button type="button" class="flex-1 rounded-lg bg-teal-600 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-400 md:rounded-xl md:py-2.5 md:text-base" :disabled="isFilterBusy" @click="applyFilters">{{ isApplyingFilters ? 'Menerapkan...' : 'Terapkan' }}</button>
             </div>
         </div>
 
@@ -443,18 +463,20 @@ const deactivateTenant = async () => {
                 <div class="flex flex-wrap items-end gap-3 lg:col-span-2 xl:col-span-1 xl:justify-end">
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="isFilterBusy"
                         @click="resetFilters"
                     >
                         <RotateCcw class="size-4" />
-                        Reset
+                        {{ isResettingFilters ? 'Mereset...' : 'Reset' }}
                     </button>
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-teal-400"
+                        :disabled="isFilterBusy"
                         @click="applyFilters"
                     >
-                        Terapkan
+                        {{ isApplyingFilters ? 'Menerapkan...' : 'Terapkan' }}
                     </button>
                 </div>
             </div>
