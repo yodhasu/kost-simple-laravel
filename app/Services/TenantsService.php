@@ -28,6 +28,7 @@ class TenantsService
     ): LengthAwarePaginator {
         $paginator = Tenant::query()
             ->with(['kost.region'])
+            ->where('is_active', true)
             ->when($regionId, function ($query) use ($regionId): void {
                 $query->whereHas('kost', fn ($kostQuery) => $kostQuery->where('region_id', $regionId));
             })

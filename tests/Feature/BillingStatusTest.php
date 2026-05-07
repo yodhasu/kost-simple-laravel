@@ -405,6 +405,26 @@ class BillingStatusTest extends TestCase
         $this->assertSame(50_000, $summary['stats']['net_revenue_to_date']);
     }
 
+    public function test_get_all_excludes_inactive_tenants(): void
+    {
+        $activeTenant = $this->makeTenant([
+            'name' => 'Active Tenant',
+            'is_active' => true,
+        ]);
+
+        $inactiveTenant = $this->makeTenant([
+            'name' => 'Inactive Tenant',
+            'is_active' => false,
+        ]);
+
+        $tenants = app(TenantsService::class)->getAll(pageSize: 100);
+
+        $tenantIds = collect($tenants->items())->pluck('id')->all();
+
+        $this->assertContains($activeTenant->id, $tenantIds);
+        $this->assertNotContains($inactiveTenant->id, $tenantIds);
+    }
+
     public function test_dp_amount_must_be_less_than_monthly_rent(): void
     {
         $region = Region::query()->create([
