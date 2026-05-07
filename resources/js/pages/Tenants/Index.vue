@@ -693,7 +693,7 @@ const deactivateTenant = async () => {
         <BaseModal
             :open="confirmDeleteOpen"
             title="Nonaktifkan Penyewa"
-            description="Frontend parity untuk flow hapus tenant lama. Saat backend deletion siap, aksi ini bisa langsung dihubungkan."
+            description=""
             max-width-class="sm:max-w-md"
             @update:open="confirmDeleteOpen = $event"
         >
