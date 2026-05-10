@@ -38,10 +38,46 @@ class OwnerTransactionControlTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Transactions/Index')
                 ->has('transactions', 1)
+                ->where('pagination.total', 1)
+                ->where('pagination.currentPage', 1)
+                ->where('filters.pageSize', 10)
                 ->where('transactions.0.description', 'Pembayaran sewa Mei')
                 ->where('transactions.0.amount', 1_000_000)
                 ->where('transactions.0.tenantName', 'Selly')
                 ->where('transactions.0.kostName', 'TBKost Sukamto')
+            );
+    }
+
+    public function test_owner_transaction_control_page_is_paginated(): void
+    {
+        $owner = $this->makeUserWithRole('owner');
+        [$region, $kost, $tenant] = $this->makeKostFixture();
+
+        foreach (range(1, 12) as $index) {
+            Transaction::query()->create([
+                'kost_id' => $kost->id,
+                'tenant_id' => $tenant->id,
+                'category' => 'rent',
+                'amount' => 1_000_000 + $index,
+                'transaction_date' => '2026-05-'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'description' => 'Transaksi '.$index,
+                'region_id' => $region->id,
+                'financial_class' => 'REVENUE',
+                'is_frozen' => false,
+            ]);
+        }
+
+        $this->actingAs($owner)
+            ->get(route('transactions.index', ['page_size' => 5, 'page' => 2]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Transactions/Index')
+                ->has('transactions', 5)
+                ->where('pagination.total', 12)
+                ->where('pagination.currentPage', 2)
+                ->where('pagination.lastPage', 3)
+                ->where('pagination.pageSize', 5)
+                ->where('filters.pageSize', 5)
             );
     }
 

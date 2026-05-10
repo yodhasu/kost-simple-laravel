@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { Eye, Pencil, Search, SlidersHorizontal, Trash2 } from 'lucide-vue-next';
+import { CheckCircle2, Eye, Pencil, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
@@ -49,6 +49,7 @@ type Filters = {
     financialClass: string;
     dateFrom: string;
     dateTo: string;
+    pageSize: number;
 };
 
 type Summary = {
@@ -56,6 +57,15 @@ type Summary = {
     revenue: number;
     expense: number;
     net: number;
+};
+
+type Pagination = {
+    total: number;
+    currentPage: number;
+    lastPage: number;
+    pageSize: number;
+    from: number | null;
+    to: number | null;
 };
 
 const props = defineProps<{
@@ -66,6 +76,7 @@ const props = defineProps<{
     filters: Filters;
     summary: Summary;
     transactions: TransactionRow[];
+    pagination: Pagination;
 }>();
 
 const filterForm = reactive({ ...props.filters });
@@ -73,10 +84,16 @@ const selectedTransaction = ref<TransactionRow | null>(null);
 const detailOpen = ref(false);
 const editOpen = ref(false);
 const deleteOpen = ref(false);
+const editConfirmOpen = ref(false);
 const deleteConfirmation = ref('');
 const actionError = ref('');
 const saving = ref(false);
 const deleting = ref(false);
+const statusOpen = ref(false);
+const statusType = ref<'success' | 'error'>('success');
+const statusTitle = ref('');
+const statusMessage = ref('');
+const pendingRefreshAfterStatus = ref(false);
 
 const editForm = reactive({
     transaction_date: '',
@@ -160,6 +177,34 @@ const hasActiveFilters = computed(() =>
     || filterForm.dateTo,
 );
 
+const pageWindow = computed(() => {
+    const pages = [];
+    const start = Math.max(1, props.pagination.currentPage - 1);
+    const end = Math.min(props.pagination.lastPage, props.pagination.currentPage + 1);
+
+    for (let page = start; page <= end; page += 1) {
+        pages.push(page);
+    }
+
+    return pages;
+});
+
+const showStatus = (type: 'success' | 'error', title: string, message: string) => {
+    statusType.value = type;
+    statusTitle.value = title;
+    statusMessage.value = message;
+    statusOpen.value = true;
+};
+
+const closeStatus = () => {
+    statusOpen.value = false;
+
+    if (pendingRefreshAfterStatus.value) {
+        pendingRefreshAfterStatus.value = false;
+        refreshPage();
+    }
+};
+
 watch(
     () => filterForm.regionId,
     () => {
@@ -178,16 +223,20 @@ watch(
     },
 );
 
+const routeData = (page = 1) => ({
+    search: filterForm.search || undefined,
+    region_id: filterForm.regionId === 'all' ? undefined : filterForm.regionId,
+    kost_id: filterForm.kostId === 'all' ? undefined : filterForm.kostId,
+    financial_class: filterForm.financialClass === 'all' ? undefined : filterForm.financialClass,
+    date_from: filterForm.dateFrom || undefined,
+    date_to: filterForm.dateTo || undefined,
+    page_size: filterForm.pageSize,
+    page,
+});
+
 const applyFilters = () => {
     router.visit('/transactions', {
-        data: {
-            search: filterForm.search || undefined,
-            region_id: filterForm.regionId === 'all' ? undefined : filterForm.regionId,
-            kost_id: filterForm.kostId === 'all' ? undefined : filterForm.kostId,
-            financial_class: filterForm.financialClass === 'all' ? undefined : filterForm.financialClass,
-            date_from: filterForm.dateFrom || undefined,
-            date_to: filterForm.dateTo || undefined,
-        },
+        data: routeData(),
         preserveScroll: true,
         replace: true,
     });
@@ -200,20 +249,26 @@ const resetFilters = () => {
     filterForm.financialClass = 'all';
     filterForm.dateFrom = '';
     filterForm.dateTo = '';
+    filterForm.pageSize = 10;
     applyFilters();
 };
 
 const refreshPage = () => {
     router.visit('/transactions', {
-        data: {
-            search: props.filters.search || undefined,
-            region_id: props.filters.regionId === 'all' ? undefined : props.filters.regionId,
-            kost_id: props.filters.kostId === 'all' ? undefined : props.filters.kostId,
-            financial_class: props.filters.financialClass === 'all' ? undefined : props.filters.financialClass,
-            date_from: props.filters.dateFrom || undefined,
-            date_to: props.filters.dateTo || undefined,
-        },
-        only: ['transactions', 'summary'],
+        data: routeData(props.pagination.currentPage),
+        only: ['transactions', 'summary', 'pagination'],
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+const goToPage = (page: number) => {
+    if (page < 1 || page > props.pagination.lastPage || page === props.pagination.currentPage) {
+        return;
+    }
+
+    router.visit('/transactions', {
+        data: routeData(page),
         preserveScroll: true,
         replace: true,
     });
@@ -235,6 +290,11 @@ const openEdit = (transaction: TransactionRow) => {
     editForm.kost_id = transaction.kostId ?? '';
     editForm.tenant_id = transaction.tenantId ?? '';
     editOpen.value = true;
+};
+
+const requestSaveTransaction = () => {
+    actionError.value = '';
+    editConfirmOpen.value = true;
 };
 
 const openDelete = (transaction: TransactionRow) => {
@@ -266,9 +326,13 @@ const saveTransaction = async () => {
             },
         });
         editOpen.value = false;
-        refreshPage();
+        editConfirmOpen.value = false;
+        pendingRefreshAfterStatus.value = true;
+        showStatus('success', 'Transaksi berhasil diperbarui', 'Koreksi transaksi sudah tersimpan di buku transaksi.');
     } catch (error) {
         actionError.value = error instanceof ApiError ? error.message : 'Gagal memperbarui transaksi.';
+        editConfirmOpen.value = false;
+        showStatus('error', 'Gagal memperbarui transaksi', actionError.value);
     } finally {
         saving.value = false;
     }
@@ -291,9 +355,11 @@ const deleteTransaction = async () => {
         });
         deleteOpen.value = false;
         detailOpen.value = false;
-        refreshPage();
+        pendingRefreshAfterStatus.value = true;
+        showStatus('success', 'Transaksi berhasil dihapus', 'Transaksi sudah dihapus permanen dari database lokal.');
     } catch (error) {
         actionError.value = error instanceof ApiError ? error.message : 'Gagal menghapus transaksi.';
+        showStatus('error', 'Gagal menghapus transaksi', actionError.value);
     } finally {
         deleting.value = false;
     }
@@ -344,7 +410,7 @@ const deleteTransaction = async () => {
                 <h2 class="font-bold">Filter transaksi</h2>
             </div>
 
-            <div class="mt-4 grid gap-3 lg:grid-cols-6">
+            <div class="mt-4 grid gap-3 lg:grid-cols-7">
                 <label class="grid gap-2 lg:col-span-2">
                     <span class="text-xs font-semibold text-slate-600">Cari</span>
                     <span class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
@@ -378,7 +444,17 @@ const deleteTransaction = async () => {
                     </select>
                 </label>
 
-                <div class="grid grid-cols-2 gap-2">
+                <label class="grid gap-2">
+                    <span class="text-xs font-semibold text-slate-600">Per halaman</span>
+                    <select v-model.number="filterForm.pageSize" class="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                        <option :value="5">5</option>
+                        <option :value="10">10</option>
+                        <option :value="20">20</option>
+                        <option :value="50">50</option>
+                    </select>
+                </label>
+
+                <div class="grid grid-cols-2 gap-2 lg:col-span-2">
                     <label class="grid gap-2">
                         <span class="text-xs font-semibold text-slate-600">Dari</span>
                         <input v-model="filterForm.dateFrom" type="date" class="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
@@ -449,25 +525,26 @@ const deleteTransaction = async () => {
                 </table>
             </div>
 
-            <div class="grid gap-3 p-3 lg:hidden">
-                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-semibold text-slate-500">{{ formatDate(transaction.date) }}</p>
-                            <h3 class="mt-1 font-bold text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
-                            <p class="mt-1 text-xs text-slate-500">{{ transaction.kostName || '-' }} · {{ transaction.tenantName || transaction.category || '-' }}</p>
+            <div class="grid gap-3 p-2.5 lg:hidden">
+                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-[1.35rem] border border-slate-200 bg-white p-3.5 shadow-sm">
+                    <div class="flex items-start justify-between gap-2.5">
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ formatDate(transaction.date) }}</p>
+                            <h3 class="mt-1 line-clamp-2 text-sm font-bold leading-snug text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
+                            <p class="mt-1 truncate text-xs text-slate-500">{{ transaction.kostName || '-' }}</p>
+                            <p class="mt-0.5 truncate text-xs text-slate-400">{{ transaction.tenantName || transaction.category || 'Tidak terkait tenant' }}</p>
                         </div>
-                        <span class="rounded-full px-2.5 py-1 text-[10px] font-bold ring-1" :class="financialClassTone(transaction.financialClass)">
+                        <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ring-1" :class="financialClassTone(transaction.financialClass)">
                             {{ financialClassLabel(transaction.financialClass) }}
                         </span>
                     </div>
-                    <p class="mt-3 text-lg font-extrabold" :class="transaction.financialClass === 'EXPENSE' ? 'text-amber-700' : 'text-emerald-700'">
+                    <p class="mt-3 text-xl font-extrabold tracking-tight" :class="transaction.financialClass === 'EXPENSE' ? 'text-amber-700' : 'text-emerald-700'">
                         {{ formatCurrency(transaction.signedAmount) }}
                     </p>
-                    <div class="mt-3 flex gap-2">
-                        <Button type="button" variant="outline" class="flex-1" @click="openDetail(transaction)">Detail</Button>
-                        <Button type="button" class="flex-1 bg-teal-600 text-white hover:bg-teal-700" @click="openEdit(transaction)">Edit</Button>
-                        <Button type="button" class="bg-rose-600 text-white hover:bg-rose-700" @click="openDelete(transaction)">Hapus</Button>
+                    <div class="mt-3 grid grid-cols-3 gap-2">
+                        <Button type="button" variant="outline" class="h-10 rounded-xl px-2 text-xs" @click="openDetail(transaction)">Detail</Button>
+                        <Button type="button" class="h-10 rounded-xl bg-teal-600 px-2 text-xs text-white hover:bg-teal-700" @click="openEdit(transaction)">Edit</Button>
+                        <Button type="button" class="h-10 rounded-xl bg-rose-600 px-2 text-xs text-white hover:bg-rose-700" @click="openDelete(transaction)">Hapus</Button>
                     </div>
                 </article>
             </div>
@@ -475,6 +552,34 @@ const deleteTransaction = async () => {
             <div v-if="transactions.length === 0" class="px-4 py-14 text-center">
                 <p class="font-semibold text-slate-800">Tidak ada transaksi yang cocok.</p>
                 <p class="mt-1 text-sm text-slate-500">Coba longgarkan filter atau tanggalnya.</p>
+            </div>
+
+            <div v-if="pagination.total > 0" class="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                    Menampilkan <span class="font-semibold text-slate-900">{{ pagination.from }}</span>–<span class="font-semibold text-slate-900">{{ pagination.to }}</span>
+                    dari <span class="font-semibold text-slate-900">{{ pagination.total }}</span> transaksi
+                </p>
+                <div class="flex items-center justify-between gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs" :disabled="pagination.currentPage <= 1" @click="goToPage(pagination.currentPage - 1)">
+                        Sebelumnya
+                    </Button>
+                    <div class="flex items-center gap-1">
+                        <Button
+                            v-for="page in pageWindow"
+                            :key="page"
+                            type="button"
+                            variant="outline"
+                            class="h-9 min-w-9 rounded-xl px-3 text-xs"
+                            :class="page === pagination.currentPage ? 'border-teal-600 bg-teal-50 text-teal-800' : ''"
+                            @click="goToPage(page)"
+                        >
+                            {{ page }}
+                        </Button>
+                    </div>
+                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs" :disabled="pagination.currentPage >= pagination.lastPage" @click="goToPage(pagination.currentPage + 1)">
+                        Berikutnya
+                    </Button>
+                </div>
             </div>
         </article>
 
@@ -546,9 +651,20 @@ const deleteTransaction = async () => {
             </div>
             <template #footer>
                 <Button type="button" variant="outline" :disabled="saving" @click="editOpen = false">Batal</Button>
-                <Button type="button" class="bg-teal-600 text-white hover:bg-teal-700" :disabled="saving" @click="saveTransaction">Simpan Koreksi</Button>
+                <Button type="button" class="bg-teal-600 text-white hover:bg-teal-700" :disabled="saving" @click="requestSaveTransaction">Simpan Koreksi</Button>
             </template>
         </BaseModal>
+
+        <ConfirmModal
+            :open="editConfirmOpen"
+            title="Simpan koreksi transaksi?"
+            description="Pastikan nominal, tanggal, kategori, kost, dan tenant sudah benar. Koreksi ini langsung mengubah buku transaksi."
+            confirm-label="Ya, Simpan Koreksi"
+            variant="info"
+            :loading="saving"
+            @update:open="editConfirmOpen = $event"
+            @confirm="saveTransaction"
+        />
 
         <ConfirmModal
             :open="deleteOpen"
@@ -567,5 +683,24 @@ const deleteTransaction = async () => {
                 <input v-model="deleteConfirmation" type="text" class="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100" placeholder="HAPUS" />
             </label>
         </ConfirmModal>
+
+        <BaseModal
+            :open="statusOpen"
+            :title="statusTitle"
+            :description="statusMessage"
+            max-width-class="sm:max-w-md"
+            @update:open="$event ? statusOpen = true : closeStatus()"
+        >
+            <div class="flex items-center gap-3 rounded-2xl p-4" :class="statusType === 'success' ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'">
+                <CheckCircle2 v-if="statusType === 'success'" class="size-8 shrink-0 text-emerald-600" />
+                <XCircle v-else class="size-8 shrink-0 text-rose-600" />
+                <p class="text-sm leading-6">
+                    {{ statusType === 'success' ? 'Perubahan sudah dikonfirmasi oleh server.' : 'Server menolak perubahan. Data belum berubah.' }}
+                </p>
+            </div>
+            <template #footer>
+                <Button type="button" class="bg-teal-600 text-white hover:bg-teal-700" @click="closeStatus">Mengerti</Button>
+            </template>
+        </BaseModal>
     </section>
 </template>

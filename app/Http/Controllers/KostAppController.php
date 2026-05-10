@@ -142,6 +142,7 @@ class KostAppController extends Controller
         $search = $request->string('search')->toString() ?: null;
         $dateFrom = $request->string('date_from')->toString() ?: null;
         $dateTo = $request->string('date_to')->toString() ?: null;
+        $pageSize = min(50, max(5, (int) $request->integer('page_size', 10)));
 
         if ($selectedKostId === 'all') {
             $selectedKostId = null;
@@ -151,7 +152,7 @@ class KostAppController extends Controller
             $selectedClass = null;
         }
 
-        $transactions = Transaction::query()
+        $transactionsQuery = Transaction::query()
             ->with(['tenant:id,name,kost_id', 'kost:id,name,region_id', 'region:id,name'])
             ->when($selectedRegionId, fn ($query) => $query->where('region_id', $selectedRegionId))
             ->when($selectedKostId, fn ($query) => $query->where('kost_id', $selectedKostId))
@@ -168,12 +169,15 @@ class KostAppController extends Controller
                 });
             })
             ->latest('transaction_date')
-            ->latest('created_at')
-            ->limit(200)
-            ->get();
+            ->latest('created_at');
 
-        $revenue = $transactions->where('financial_class', 'REVENUE')->sum('amount');
-        $expense = $transactions->where('financial_class', 'EXPENSE')->sum('amount');
+        $summaryQuery = clone $transactionsQuery;
+        $summaryTransactions = $summaryQuery->get(['amount', 'financial_class']);
+        $revenue = $summaryTransactions->where('financial_class', 'REVENUE')->sum('amount');
+        $expense = $summaryTransactions->where('financial_class', 'EXPENSE')->sum('amount');
+        $transactions = $transactionsQuery
+            ->paginate($pageSize)
+            ->withQueryString();
 
         return Inertia::render('Transactions/Index', [
             'viewer' => $this->viewer($request),
@@ -187,17 +191,26 @@ class KostAppController extends Controller
                 'financialClass' => $selectedClass ?? 'all',
                 'dateFrom' => $dateFrom ?? '',
                 'dateTo' => $dateTo ?? '',
+                'pageSize' => $pageSize,
             ],
             'summary' => [
-                'count' => $transactions->count(),
+                'count' => $transactions->total(),
                 'revenue' => (int) $revenue,
                 'expense' => (int) $expense,
                 'net' => (int) ($revenue - $expense),
             ],
-            'transactions' => $transactions
+            'transactions' => collect($transactions->items())
                 ->map(fn (Transaction $transaction) => $this->transactionsService->toControlPayload($transaction))
                 ->values()
                 ->all(),
+            'pagination' => [
+                'total' => $transactions->total(),
+                'currentPage' => $transactions->currentPage(),
+                'lastPage' => $transactions->lastPage(),
+                'pageSize' => $transactions->perPage(),
+                'from' => $transactions->firstItem(),
+                'to' => $transactions->lastItem(),
+            ],
         ]);
     }
 
