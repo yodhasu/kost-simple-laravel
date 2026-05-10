@@ -80,6 +80,7 @@ const props = defineProps<{
 }>();
 
 const filterForm = reactive({ ...props.filters });
+const mobileFilterOpen = ref(false);
 const selectedTransaction = ref<TransactionRow | null>(null);
 const detailOpen = ref(false);
 const editOpen = ref(false);
@@ -177,16 +178,28 @@ const hasActiveFilters = computed(() =>
     || filterForm.dateTo,
 );
 
-const pageWindow = computed(() => {
-    const pages = [];
-    const start = Math.max(1, props.pagination.currentPage - 1);
-    const end = Math.min(props.pagination.lastPage, props.pagination.currentPage + 1);
+const activeFilterCount = computed(() =>
+    [
+        Boolean(filterForm.search.trim()),
+        Boolean(filterForm.regionId !== 'all'),
+        Boolean(filterForm.kostId !== 'all'),
+        Boolean(filterForm.financialClass !== 'all'),
+        Boolean(filterForm.dateFrom),
+        Boolean(filterForm.dateTo),
+    ].filter(Boolean).length,
+);
 
-    for (let page = start; page <= end; page += 1) {
-        pages.push(page);
-    }
+const totalPages = computed(() => Math.max(1, props.pagination.lastPage));
+const pageStart = computed(() => props.pagination.from ?? 0);
+const pageEnd = computed(() => props.pagination.to ?? 0);
 
-    return pages;
+const visiblePages = computed(() => {
+    const current = props.pagination.currentPage;
+    const pages = new Set<number>([1, totalPages.value, current - 1, current, current + 1]);
+
+    return [...pages]
+        .filter((page) => page >= 1 && page <= totalPages.value)
+        .sort((a, b) => a - b);
 });
 
 const showStatus = (type: 'success' | 'error', title: string, message: string) => {
@@ -235,6 +248,10 @@ const routeData = (page = 1) => ({
 });
 
 const applyFilters = () => {
+    if (window.innerWidth < 1024) {
+        mobileFilterOpen.value = false;
+    }
+
     router.visit('/transactions', {
         data: routeData(),
         preserveScroll: true,
@@ -250,6 +267,11 @@ const resetFilters = () => {
     filterForm.dateFrom = '';
     filterForm.dateTo = '';
     filterForm.pageSize = 10;
+
+    if (window.innerWidth < 1024) {
+        mobileFilterOpen.value = false;
+    }
+
     applyFilters();
 };
 
@@ -369,7 +391,22 @@ const deleteTransaction = async () => {
 <template>
     <Head title="Kontrol Transaksi" />
 
-    <section class="space-y-4 md:space-y-5">
+    <section class="space-y-2 md:space-y-5">
+        <div class="sticky top-2 z-10 flex items-center justify-between rounded-xl bg-white/90 px-2 py-1.5 shadow-sm backdrop-blur lg:hidden">
+            <div>
+                <h2 class="text-sm font-bold text-slate-950">Transaksi <span class="font-normal text-slate-500">({{ pagination.total }})</span></h2>
+            </div>
+            <button
+                type="button"
+                class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-medium text-slate-600"
+                @click="mobileFilterOpen = !mobileFilterOpen"
+            >
+                <Search class="size-3" />
+                Filter
+                <span v-if="activeFilterCount" class="rounded-full bg-teal-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{{ activeFilterCount }}</span>
+            </button>
+        </div>
+
         <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-6 md:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -404,7 +441,74 @@ const deleteTransaction = async () => {
             </div>
         </div>
 
-        <article class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-5">
+        <article v-if="mobileFilterOpen" class="rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/70 lg:hidden">
+            <div class="grid gap-2">
+                <label class="grid gap-1.5">
+                    <span class="text-[10px] font-semibold text-slate-600">Cari</span>
+                    <span class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+                        <Search class="size-3 text-slate-400" />
+                        <input v-model="filterForm.search" type="text" class="w-full bg-transparent text-[11px] outline-none" placeholder="Tenant, kost, kategori" @keyup.enter="applyFilters" />
+                    </span>
+                </label>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Region</span>
+                        <select v-model="filterForm.regionId" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                            <option v-for="region in regions" :key="region.id" :value="region.id">{{ region.name }}</option>
+                        </select>
+                    </label>
+
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Kost</span>
+                        <select v-model="filterForm.kostId" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                            <option value="all">Semua Kost</option>
+                            <option v-for="kost in filteredKostOptions" :key="kost.id" :value="kost.id">{{ kost.name }}</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Jenis</span>
+                        <select v-model="filterForm.financialClass" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                            <option value="all">Semua</option>
+                            <option value="REVENUE">Pemasukan</option>
+                            <option value="EXPENSE">Pengeluaran</option>
+                            <option value="LIABILITY">Liability</option>
+                        </select>
+                    </label>
+
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Per halaman</span>
+                        <select v-model.number="filterForm.pageSize" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                            <option :value="5">5</option>
+                            <option :value="10">10</option>
+                            <option :value="20">20</option>
+                            <option :value="50">50</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Dari</span>
+                        <input v-model="filterForm.dateFrom" type="date" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                    </label>
+                    <label class="grid gap-1.5">
+                        <span class="text-[10px] font-semibold text-slate-600">Sampai</span>
+                        <input v-model="filterForm.dateTo" type="date" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-0.5">
+                    <Button type="button" variant="outline" class="h-8 rounded-lg px-2 text-[10px]" :disabled="!hasActiveFilters" @click="resetFilters">Reset</Button>
+                    <Button type="button" class="h-8 rounded-lg bg-teal-600 px-2 text-[10px] text-white hover:bg-teal-700" @click="applyFilters">Terapkan</Button>
+                </div>
+            </div>
+        </article>
+
+        <article class="hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-5 lg:block">
             <div class="flex items-center gap-2 text-slate-950">
                 <SlidersHorizontal class="size-5 text-teal-700" />
                 <h2 class="font-bold">Filter transaksi</h2>
@@ -525,26 +629,26 @@ const deleteTransaction = async () => {
                 </table>
             </div>
 
-            <div class="grid gap-3 p-2.5 lg:hidden">
-                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-[1.35rem] border border-slate-200 bg-white p-3.5 shadow-sm">
+            <div class="grid gap-2 p-2 lg:hidden">
+                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                     <div class="flex items-start justify-between gap-2.5">
                         <div class="min-w-0">
-                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ formatDate(transaction.date) }}</p>
-                            <h3 class="mt-1 line-clamp-2 text-sm font-bold leading-snug text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
-                            <p class="mt-1 truncate text-xs text-slate-500">{{ transaction.kostName || '-' }}</p>
-                            <p class="mt-0.5 truncate text-xs text-slate-400">{{ transaction.tenantName || transaction.category || 'Tidak terkait tenant' }}</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ formatDate(transaction.date) }}</p>
+                            <h3 class="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
+                            <p class="mt-1 truncate text-[10px] text-slate-500">{{ transaction.kostName || '-' }}</p>
+                            <p class="mt-0.5 truncate text-[10px] text-slate-400">{{ transaction.tenantName || transaction.category || 'Tidak terkait tenant' }}</p>
                         </div>
-                        <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ring-1" :class="financialClassTone(transaction.financialClass)">
+                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold ring-1" :class="financialClassTone(transaction.financialClass)">
                             {{ financialClassLabel(transaction.financialClass) }}
                         </span>
                     </div>
-                    <p class="mt-3 text-xl font-extrabold tracking-tight" :class="transaction.financialClass === 'EXPENSE' ? 'text-amber-700' : 'text-emerald-700'">
+                    <p class="mt-2 text-base font-extrabold tracking-tight" :class="transaction.financialClass === 'EXPENSE' ? 'text-amber-700' : 'text-emerald-700'">
                         {{ formatCurrency(transaction.signedAmount) }}
                     </p>
-                    <div class="mt-3 grid grid-cols-3 gap-2">
-                        <Button type="button" variant="outline" class="h-10 rounded-xl px-2 text-xs" @click="openDetail(transaction)">Detail</Button>
-                        <Button type="button" class="h-10 rounded-xl bg-teal-600 px-2 text-xs text-white hover:bg-teal-700" @click="openEdit(transaction)">Edit</Button>
-                        <Button type="button" class="h-10 rounded-xl bg-rose-600 px-2 text-xs text-white hover:bg-rose-700" @click="openDelete(transaction)">Hapus</Button>
+                    <div class="mt-2 grid grid-cols-3 gap-1.5">
+                        <Button type="button" variant="outline" class="h-8 rounded-lg px-1.5 text-[10px]" @click="openDetail(transaction)">Detail</Button>
+                        <Button type="button" class="h-8 rounded-lg bg-teal-600 px-1.5 text-[10px] text-white hover:bg-teal-700" @click="openEdit(transaction)">Edit</Button>
+                        <Button type="button" class="h-8 rounded-lg bg-rose-600 px-1.5 text-[10px] text-white hover:bg-rose-700" @click="openDelete(transaction)">Hapus</Button>
                     </div>
                 </article>
             </div>
@@ -554,31 +658,59 @@ const deleteTransaction = async () => {
                 <p class="mt-1 text-sm text-slate-500">Coba longgarkan filter atau tanggalnya.</p>
             </div>
 
-            <div v-if="pagination.total > 0" class="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                    Menampilkan <span class="font-semibold text-slate-900">{{ pagination.from }}</span>–<span class="font-semibold text-slate-900">{{ pagination.to }}</span>
-                    dari <span class="font-semibold text-slate-900">{{ pagination.total }}</span> transaksi
+            <div v-if="pagination.total > 0" class="border-t border-slate-100 px-3 py-3 lg:hidden">
+                <div class="flex items-center justify-between text-[11px] text-slate-600">
+                    <span>{{ pageStart }}-{{ pageEnd }} / {{ pagination.total }}</span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" class="min-h-8 min-w-8 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-40" :disabled="pagination.currentPage <= 1" @click="goToPage(pagination.currentPage - 1)">
+                            ←
+                        </button>
+                        <span class="inline-flex items-center px-1 text-[10px] font-semibold text-slate-700">{{ pagination.currentPage }}/{{ totalPages }}</span>
+                        <button type="button" class="min-h-8 min-w-8 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 disabled:opacity-40" :disabled="pagination.currentPage >= totalPages" @click="goToPage(pagination.currentPage + 1)">
+                            →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="pagination.total > 0" class="hidden border-t border-slate-100 px-6 py-5 lg:flex lg:items-center lg:justify-between">
+                <p class="text-sm text-slate-600">
+                    Menampilkan {{ pageStart }}-{{ pageEnd }} dari {{ pagination.total }} transaksi.
                 </p>
-                <div class="flex items-center justify-between gap-2 sm:justify-end">
-                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs" :disabled="pagination.currentPage <= 1" @click="goToPage(pagination.currentPage - 1)">
+
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="pagination.currentPage <= 1"
+                        @click="goToPage(pagination.currentPage - 1)"
+                    >
                         Sebelumnya
-                    </Button>
+                    </button>
+
                     <div class="flex items-center gap-1">
-                        <Button
-                            v-for="page in pageWindow"
-                            :key="page"
+                        <button
+                            v-for="page in visiblePages"
+                            :key="`tx-page-${page}`"
                             type="button"
-                            variant="outline"
-                            class="h-9 min-w-9 rounded-xl px-3 text-xs"
-                            :class="page === pagination.currentPage ? 'border-teal-600 bg-teal-50 text-teal-800' : ''"
+                            class="inline-flex min-w-9 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition"
+                            :class="page === pagination.currentPage
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'"
                             @click="goToPage(page)"
                         >
                             {{ page }}
-                        </Button>
+                        </button>
                     </div>
-                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs" :disabled="pagination.currentPage >= pagination.lastPage" @click="goToPage(pagination.currentPage + 1)">
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="pagination.currentPage >= totalPages"
+                        @click="goToPage(pagination.currentPage + 1)"
+                    >
                         Berikutnya
-                    </Button>
+                    </button>
                 </div>
             </div>
         </article>
