@@ -350,6 +350,63 @@ class BillingStatusTest extends TestCase
         );
     }
 
+    public function test_paid_tenant_requires_explicit_carryover_confirmation_for_extra_payment(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-04 00:00:00');
+
+        $tenant = $this->makeTenant([
+            'start_date' => '2026-01-03',
+            'rent_price' => 150_000,
+            'paid_until' => '2026-04-03',
+            'prepaid_balance' => 0,
+            'status' => TenantBillingService::STATUS_LUNAS,
+        ]);
+
+        try {
+            app(TransactionsService::class)->createPayment([
+                'kost_id' => $tenant->kost_id,
+                'tenant_id' => $tenant->id,
+                'amount' => 150_000,
+                'transaction_date' => '2026-04-04',
+            ]);
+
+            $this->fail('Expected paid tenant payment to require carryover confirmation.');
+        } catch (HttpResponseException $exception) {
+            $this->assertSame(422, $exception->getResponse()->getStatusCode());
+            $this->assertSame(
+                'Penyewa sudah LUNAS. Konfirmasi carryover diperlukan sebelum mencatat pembayaran tambahan.',
+                $exception->getResponse()->getData(true)['message'] ?? null,
+            );
+        }
+    }
+
+    public function test_paid_tenant_extra_payment_with_carryover_confirmation_covers_next_month(): void
+    {
+        CarbonImmutable::setTestNow('2026-04-04 00:00:00');
+
+        $tenant = $this->makeTenant([
+            'start_date' => '2026-01-03',
+            'rent_price' => 150_000,
+            'paid_until' => '2026-04-03',
+            'prepaid_balance' => 0,
+            'status' => TenantBillingService::STATUS_LUNAS,
+        ]);
+
+        $transaction = app(TransactionsService::class)->createPayment([
+            'kost_id' => $tenant->kost_id,
+            'tenant_id' => $tenant->id,
+            'amount' => 150_000,
+            'transaction_date' => '2026-04-04',
+            'allow_carryover' => true,
+        ]);
+
+        $tenant->refresh();
+
+        $this->assertSame('2026-05-03', $tenant->paid_until?->toDateString());
+        $this->assertSame(0, $tenant->prepaid_balance);
+        $this->assertSame('Pembayaran sewa | bulan Mei 2026 | carryover balance Rp0', $transaction->description);
+    }
+
     public function test_dashboard_income_excludes_dp_money_and_counts_only_regular_rent_income(): void
     {
         CarbonImmutable::setTestNow('2026-04-04 00:00:00');

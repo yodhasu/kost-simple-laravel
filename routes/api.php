@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\KostController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\TenantController;
+use App\Http\Controllers\Api\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'auth', 'verified'])->group(function () {
@@ -21,6 +22,8 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
         Route::post('kosts', [KostController::class, 'store'])->name('api.kosts.store');
         Route::patch('kosts/{kost}', [KostController::class, 'update'])->name('api.kosts.update');
         Route::delete('kosts/{kost}', [KostController::class, 'destroy'])->name('api.kosts.destroy');
+        Route::patch('transactions/{transaction}', [TransactionController::class, 'update'])->name('api.transactions.update');
+        Route::delete('transactions/{transaction}', [TransactionController::class, 'destroy'])->name('api.transactions.destroy');
     });
 
     Route::get('exports/download', ExportController::class)->name('api.exports.download');

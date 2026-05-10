@@ -24,6 +24,7 @@ class PaymentController extends Controller
             'tenant_id' => ['required', 'string', 'exists:tenants,id'],
             'amount' => ['required', 'integer', 'min:1'],
             'transaction_date' => ['required', 'date'],
+            'allow_carryover' => ['sometimes', 'boolean'],
         ]);
 
         $kost = Kost::query()->findOrFail($data['kost_id']);

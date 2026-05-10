@@ -279,7 +279,7 @@ const confirmInactiveFromDetail = () => {
     confirmDeleteOpen.value = true;
 };
 
-const handleTenantPayment = async (payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string }) => {
+const handleTenantPayment = async (payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string; allow_carryover?: boolean }) => {
     actionError.value = '';
 
     try {

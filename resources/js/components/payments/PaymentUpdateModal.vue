@@ -2,10 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
+import type { TenantFormKostOption } from '@/components/tenants/TenantFormModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { TenantFormKostOption } from '@/components/tenants/TenantFormModal.vue';
 
 export type PaymentTenantOption = {
     id: string;
@@ -39,7 +39,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update:open', value: boolean): void;
-    (e: 'save', payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string }): void;
+    (e: 'save', payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string; allow_carryover?: boolean }): void;
 }>();
 
 const form = reactive({
@@ -66,6 +66,9 @@ const filteredTenants = computed(() => {
 });
 
 const selectedTenant = computed(() => filteredTenants.value.find((tenant) => tenant.id === form.tenant_id) ?? null);
+const isCarryoverPayment = computed(() =>
+    Boolean(selectedTenant.value && !selectedTenant.value.isDp && selectedTenant.value.status === 'LUNAS' && totalTagihan.value <= 0 && form.amount > 0),
+);
 
 const parseLocalDate = (value: string) => {
     const [year, month, day] = value.split('-').map(Number);
@@ -249,12 +252,41 @@ const statusLabel = (status: string) => {
 };
 
 const confirmSaveOpen = ref(false);
+const carryoverConsentOpen = ref(false);
+const carryoverConsent = reactive({
+    understandsAlreadyPaid: false,
+    understandsFutureCredit: false,
+    typedPhrase: '',
+});
+const carryoverConsentValid = computed(() =>
+    carryoverConsent.understandsAlreadyPaid
+    && carryoverConsent.understandsFutureCredit
+    && carryoverConsent.typedPhrase.trim().toUpperCase() === 'CARRYOVER',
+);
 
 const requestSave = () => {
     if (errorMessage.value) {
         return;
     }
 
+    if (isCarryoverPayment.value) {
+        carryoverConsent.understandsAlreadyPaid = false;
+        carryoverConsent.understandsFutureCredit = false;
+        carryoverConsent.typedPhrase = '';
+        carryoverConsentOpen.value = true;
+
+        return;
+    }
+
+    confirmSaveOpen.value = true;
+};
+
+const acceptCarryoverConsent = () => {
+    if (!carryoverConsentValid.value) {
+        return;
+    }
+
+    carryoverConsentOpen.value = false;
     confirmSaveOpen.value = true;
 };
 
@@ -266,6 +298,7 @@ const executeSave = () => {
         tenant_id: form.tenant_id,
         amount: form.amount,
         transaction_date: form.transaction_date,
+        allow_carryover: isCarryoverPayment.value,
     });
 };
 </script>
@@ -432,9 +465,42 @@ const executeSave = () => {
     </BaseModal>
 
     <ConfirmModal
+        :open="carryoverConsentOpen"
+        title="Penyewa Sudah LUNAS"
+        :description="`${selectedTenant?.name ?? 'Penyewa ini'} sudah lunas. Pembayaran ${formatCurrency(form.amount)} akan diperlakukan sebagai carryover/uang muka untuk siklus berikutnya, bukan tagihan bulan ini.`"
+        confirm-label="Saya Paham, Lanjut"
+        variant="warning"
+        :confirm-disabled="!carryoverConsentValid"
+        @update:open="carryoverConsentOpen = $event"
+        @confirm="acceptCarryoverConsent"
+    >
+        <div class="space-y-4 text-sm text-slate-700">
+            <label class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <input v-model="carryoverConsent.understandsAlreadyPaid" type="checkbox" class="mt-1 size-4 rounded border-amber-300 bg-white" />
+                <span>Saya paham penyewa ini statusnya sudah <strong>LUNAS</strong> dan tidak punya tagihan berjalan.</span>
+            </label>
+            <label class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <input v-model="carryoverConsent.understandsFutureCredit" type="checkbox" class="mt-1 size-4 rounded border-amber-300 bg-white" />
+                <span>Saya paham uang ini akan masuk sebagai pembayaran/carryover untuk bulan berikutnya.</span>
+            </label>
+            <div class="grid gap-2">
+                <Label for="carryover-phrase" class="text-slate-900">Ketik CARRYOVER untuk konfirmasi</Label>
+                <Input
+                    id="carryover-phrase"
+                    v-model="carryoverConsent.typedPhrase"
+                    class="border-amber-200 !bg-white !text-slate-900"
+                    placeholder="CARRYOVER"
+                />
+            </div>
+        </div>
+    </ConfirmModal>
+
+    <ConfirmModal
         :open="confirmSaveOpen"
         title="Konfirmasi Pembayaran"
-        :description="`Catat pembayaran ${formatCurrency(form.amount)} untuk ${selectedTenant?.name ?? 'penyewa'}?`"
+        :description="isCarryoverPayment
+            ? `Konfirmasi terakhir: catat ${formatCurrency(form.amount)} sebagai pembayaran carryover untuk ${selectedTenant?.name ?? 'penyewa'}?`
+            : `Catat pembayaran ${formatCurrency(form.amount)} untuk ${selectedTenant?.name ?? 'penyewa'}?`"
         confirm-label="Ya, Simpan"
         variant="info"
         @update:open="confirmSaveOpen = $event"

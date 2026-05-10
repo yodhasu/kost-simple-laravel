@@ -10,12 +10,14 @@ withDefaults(defineProps<{
     cancelLabel?: string;
     variant?: 'danger' | 'warning' | 'info';
     loading?: boolean;
+    confirmDisabled?: boolean;
 }>(), {
     description: '',
     confirmLabel: 'Ya, Lanjutkan',
     cancelLabel: 'Batal',
     variant: 'danger',
     loading: false,
+    confirmDisabled: false,
 });
 
 const emit = defineEmits<{
@@ -52,7 +54,7 @@ const variantClasses = {
             <Button
                 type="button"
                 :class="variantClasses[variant]"
-                :disabled="loading"
+                :disabled="loading || confirmDisabled"
                 @click="emit('confirm')"
             >
                 {{ confirmLabel }}

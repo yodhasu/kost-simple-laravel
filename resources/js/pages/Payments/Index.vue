@@ -204,7 +204,7 @@ const handleTenantSave = async (payload: {
     }
 };
 
-const handlePaymentSave = async (payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string }) => {
+const handlePaymentSave = async (payload: { kost_id: string; tenant_id: string; amount: number; transaction_date: string; allow_carryover?: boolean }) => {
     actionError.value = '';
 
     try {

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Download,
@@ -7,8 +6,10 @@ import {
     LogOut,
     ReceiptText,
     Settings,
+    SlidersHorizontal,
     Users,
 } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
 
 type SharedPageProps = {
@@ -42,6 +43,7 @@ const allDesktopNavItems = [
     { label: 'Beranda', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Daftar Penyewa', href: '/tenants', icon: Users },
     { label: 'Aksi & Pembayaran', href: '/payments', icon: ReceiptText },
+    { label: 'Kontrol Transaksi', href: '/transactions', icon: SlidersHorizontal },
     { label: 'Ekspor Data', href: '/export', icon: Download },
     { label: 'Pengaturan', href: '/settings', icon: Settings },
 ];
@@ -50,6 +52,7 @@ const allMobileNavItems = [
     { label: 'Daftar Penyewa', href: '/tenants', icon: Users },
     { label: 'Aksi & Pembayaran', href: '/payments', icon: ReceiptText },
     { label: 'Beranda', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Kontrol Transaksi', href: '/transactions', icon: SlidersHorizontal },
     { label: 'Ekspor Data', href: '/export', icon: Download },
     { label: 'Pengaturan', href: '/settings', icon: Settings },
 ];
@@ -57,13 +60,13 @@ const allMobileNavItems = [
 const isAdminRole = computed(() => viewerRole.value === 'admin');
 const desktopNavItems = computed(() =>
     isAdminRole.value
-        ? allDesktopNavItems.filter((item) => item.href !== '/settings')
+        ? allDesktopNavItems.filter((item) => !['/settings', '/transactions'].includes(item.href))
         : allDesktopNavItems,
 );
 const mobileNavItems = computed(() => {
     if (isAdminRole.value) {
         // Admin has 4 items — use desktop order (Beranda first) for cleaner mobile layout
-        return allDesktopNavItems.filter((item) => item.href !== '/settings');
+        return allDesktopNavItems.filter((item) => !['/settings', '/transactions'].includes(item.href));
     }
 
     return allMobileNavItems;

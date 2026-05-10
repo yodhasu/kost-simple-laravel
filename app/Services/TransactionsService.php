@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Kost;
 use App\Models\Tenant;
 use App\Models\Transaction;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
@@ -89,6 +90,14 @@ class TransactionsService
                 return $rentTransaction->fresh();
             }
 
+            $currentDueAmount = $this->tenantBillingService->currentDueAmount($tenant, $data['transaction_date']);
+
+            if ($currentDueAmount <= 0 && ! ($data['allow_carryover'] ?? false)) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Penyewa sudah LUNAS. Konfirmasi carryover diperlukan sebelum mencatat pembayaran tambahan.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+
             $tenantBeforePayment = $tenant->replicate();
             $tenantBeforePayment->id = $tenant->id;
             $tenantBeforePayment->exists = $tenant->exists;
@@ -170,5 +179,84 @@ class TransactionsService
             'region_id' => $regionId,
             'is_frozen' => false,
         ]);
+    }
+
+    public function updateManualControl(Transaction $transaction, array $data): Transaction
+    {
+        $kostId = $data['kost_id'] ?? null;
+        $tenantId = $data['tenant_id'] ?? null;
+        $regionId = null;
+
+        if ($tenantId) {
+            $tenant = Tenant::query()->findOrFail($tenantId);
+
+            if ($kostId && $tenant->kost_id !== $kostId) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Tenant tidak sesuai dengan kost yang dipilih.',
+                    'errors' => [
+                        'tenant_id' => ['Tenant tidak sesuai dengan kost yang dipilih.'],
+                    ],
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+
+            $kostId = $tenant->kost_id;
+        }
+
+        if ($kostId) {
+            $kost = Kost::query()->findOrFail($kostId);
+            $regionId = $kost->region_id;
+        }
+
+        $transaction->fill([
+            'kost_id' => $kostId,
+            'tenant_id' => $tenantId,
+            'region_id' => $regionId,
+            'financial_class' => $data['financial_class'],
+            'category' => $data['category'],
+            'amount' => (int) $data['amount'],
+            'transaction_date' => $data['transaction_date'],
+            'description' => $data['description'] ?? null,
+        ])->save();
+
+        return $transaction->fresh(['tenant', 'kost', 'region']);
+    }
+
+    public function deleteManualControl(Transaction $transaction): void
+    {
+        $transaction->delete();
+    }
+
+    /**
+     * @return array{id: string, date: ?string, category: ?string, financialClass: ?string, amount: int, signedAmount: int, description: ?string, tenantId: ?string, tenantName: ?string, kostId: ?string, kostName: ?string, regionId: ?string, regionName: ?string, referenceId: ?string, isFrozen: bool, createdAt: ?string}
+     */
+    public function toControlPayload(Transaction $transaction): array
+    {
+        return [
+            'id' => $transaction->id,
+            'date' => $this->dateString($transaction->transaction_date),
+            'category' => $transaction->category,
+            'financialClass' => $transaction->financial_class,
+            'amount' => (int) $transaction->amount,
+            'signedAmount' => $transaction->financial_class === 'EXPENSE' ? -1 * (int) $transaction->amount : (int) $transaction->amount,
+            'description' => $transaction->description,
+            'tenantId' => $transaction->tenant_id,
+            'tenantName' => $transaction->tenant?->name,
+            'kostId' => $transaction->kost_id,
+            'kostName' => $transaction->kost?->name,
+            'regionId' => $transaction->region_id,
+            'regionName' => $transaction->region?->name,
+            'referenceId' => $transaction->reference_id,
+            'isFrozen' => (bool) $transaction->is_frozen,
+            'createdAt' => $this->dateString($transaction->created_at),
+        ];
+    }
+
+    private function dateString(mixed $value): ?string
+    {
+        if ($value instanceof CarbonInterface) {
+            return $value->toDateString();
+        }
+
+        return $value ? (string) $value : null;
     }
 }

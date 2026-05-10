@@ -10,6 +10,7 @@ use App\Services\DashboardPayloadService;
 use App\Services\RegionScopeService;
 use App\Services\TenantBillingService;
 use App\Services\TenantsService;
+use App\Services\TransactionsService;
 use App\Services\UserProfileService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +23,7 @@ class KostAppController extends Controller
         private readonly RegionScopeService $regionScopeService,
         private readonly TenantBillingService $tenantBillingService,
         private readonly TenantsService $tenantsService,
+        private readonly TransactionsService $transactionsService,
         private readonly UserProfileService $userProfileService,
     ) {
     }
@@ -129,6 +131,73 @@ class KostAppController extends Controller
                 ['title' => 'Ekspor Data', 'description' => 'Unduh rekap tenant dan transaksi untuk laporan.', 'icon' => 'download'],
             ],
             'recentActivities' => $recentActivities,
+        ]);
+    }
+
+    public function transactions(Request $request): Response
+    {
+        $selectedRegionId = $this->resolveRegionFilter($request);
+        $selectedKostId = $request->string('kost_id')->toString() ?: null;
+        $selectedClass = $request->string('financial_class')->toString() ?: null;
+        $search = $request->string('search')->toString() ?: null;
+        $dateFrom = $request->string('date_from')->toString() ?: null;
+        $dateTo = $request->string('date_to')->toString() ?: null;
+
+        if ($selectedKostId === 'all') {
+            $selectedKostId = null;
+        }
+
+        if ($selectedClass === 'all') {
+            $selectedClass = null;
+        }
+
+        $transactions = Transaction::query()
+            ->with(['tenant:id,name,kost_id', 'kost:id,name,region_id', 'region:id,name'])
+            ->when($selectedRegionId, fn ($query) => $query->where('region_id', $selectedRegionId))
+            ->when($selectedKostId, fn ($query) => $query->where('kost_id', $selectedKostId))
+            ->when($selectedClass, fn ($query) => $query->where('financial_class', $selectedClass))
+            ->when($dateFrom, fn ($query) => $query->whereDate('transaction_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($query) => $query->whereDate('transaction_date', '<=', $dateTo))
+            ->when($search, function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('description', 'like', '%'.$search.'%')
+                        ->orWhere('category', 'like', '%'.$search.'%')
+                        ->orWhereHas('tenant', fn ($tenantQuery) => $tenantQuery->where('name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('kost', fn ($kostQuery) => $kostQuery->where('name', 'like', '%'.$search.'%'));
+                });
+            })
+            ->latest('transaction_date')
+            ->latest('created_at')
+            ->limit(200)
+            ->get();
+
+        $revenue = $transactions->where('financial_class', 'REVENUE')->sum('amount');
+        $expense = $transactions->where('financial_class', 'EXPENSE')->sum('amount');
+
+        return Inertia::render('Transactions/Index', [
+            'viewer' => $this->viewer($request),
+            'regions' => $this->regions($request),
+            'kostOptions' => $this->transactionKostOptions($request),
+            'tenantOptions' => $this->transactionTenantOptions($request),
+            'filters' => [
+                'search' => $search ?? '',
+                'regionId' => $selectedRegionId ?? 'all',
+                'kostId' => $selectedKostId ?? 'all',
+                'financialClass' => $selectedClass ?? 'all',
+                'dateFrom' => $dateFrom ?? '',
+                'dateTo' => $dateTo ?? '',
+            ],
+            'summary' => [
+                'count' => $transactions->count(),
+                'revenue' => (int) $revenue,
+                'expense' => (int) $expense,
+                'net' => (int) ($revenue - $expense),
+            ],
+            'transactions' => $transactions
+                ->map(fn (Transaction $transaction) => $this->transactionsService->toControlPayload($transaction))
+                ->values()
+                ->all(),
         ]);
     }
 
@@ -346,6 +415,70 @@ class KostAppController extends Controller
                     'isActive' => (bool) $tenant->is_active,
                 ];
             })
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string, regionId: string, regionName: ?string}>
+     */
+    private function transactionKostOptions(Request $request): array
+    {
+        $user = $request->user();
+        $role = $user?->profile?->role;
+        $assignedRegionIds = $user?->regions()->pluck('regions.id')->all() ?? [];
+
+        return Kost::query()
+            ->with('region:id,name')
+            ->when($user && ! in_array($role, ['owner', 'it'], true), function ($query) use ($assignedRegionIds): void {
+                if ($assignedRegionIds === []) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $query->whereIn('region_id', $assignedRegionIds);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'region_id'])
+            ->map(fn (Kost $kost) => [
+                'id' => $kost->id,
+                'name' => $kost->name,
+                'regionId' => $kost->region_id,
+                'regionName' => $kost->region?->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string, kostId: string, kostName: ?string}>
+     */
+    private function transactionTenantOptions(Request $request): array
+    {
+        $user = $request->user();
+        $role = $user?->profile?->role;
+        $assignedRegionIds = $user?->regions()->pluck('regions.id')->all() ?? [];
+
+        return Tenant::query()
+            ->with('kost:id,name,region_id')
+            ->when($user && ! in_array($role, ['owner', 'it'], true), function ($query) use ($assignedRegionIds): void {
+                if ($assignedRegionIds === []) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+
+                $query->whereHas('kost', fn ($kostQuery) => $kostQuery->whereIn('region_id', $assignedRegionIds));
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'kost_id'])
+            ->map(fn (Tenant $tenant) => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'kostId' => $tenant->kost_id,
+                'kostName' => $tenant->kost?->name,
+            ])
+            ->values()
             ->all();
     }
 }
