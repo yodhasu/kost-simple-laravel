@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { CheckCircle2, Eye, Pencil, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-vue-next';
+import { CheckCircle2, ChevronRight, Eye, Home, Pencil, Search, SlidersHorizontal, Trash2, User, X, XCircle } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import BaseModal from '@/components/BaseModal.vue';
 import ConfirmModal from '@/components/ConfirmModal.vue';
@@ -296,6 +296,11 @@ const goToPage = (page: number) => {
     });
 };
 
+const applyTransactionTab = (financialClass: string) => {
+    filterForm.financialClass = financialClass;
+    applyFilters();
+};
+
 const openDetail = (transaction: TransactionRow) => {
     selectedTransaction.value = transaction;
     detailOpen.value = true;
@@ -391,23 +396,65 @@ const deleteTransaction = async () => {
 <template>
     <Head title="Kontrol Transaksi" />
 
-    <section class="space-y-2 md:space-y-5">
-        <div class="sticky top-2 z-10 flex items-center justify-between rounded-xl bg-white/90 px-2 py-1.5 shadow-sm backdrop-blur lg:hidden">
-            <div>
-                <h2 class="text-sm font-bold text-slate-950">Transaksi <span class="font-normal text-slate-500">({{ pagination.total }})</span></h2>
+    <section class="space-y-3 md:space-y-5">
+        <div class="space-y-3 lg:hidden">
+            <header class="px-1 pt-1">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-slate-950">Kontrol Transaksi</h1>
+                    <p class="mt-1 max-w-[18rem] text-sm leading-5 text-slate-500">Kelola dan koreksi transaksi yang dibuat admin.</p>
+                </div>
+            </header>
+
+            <section class="grid grid-cols-2 gap-2.5">
+                <div class="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+                    <p class="text-[11px] font-medium text-slate-500">Total Data</p>
+                    <p class="mt-1 text-base font-bold text-slate-950">{{ summary.count }}</p>
+                </div>
+                <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 shadow-sm">
+                    <p class="text-[11px] font-medium text-emerald-700">Pemasukan</p>
+                    <p class="mt-1 text-sm font-bold text-emerald-800">{{ formatCurrency(summary.revenue) }}</p>
+                </div>
+                <div class="rounded-2xl border border-orange-100 bg-orange-50 p-3 shadow-sm">
+                    <p class="text-[11px] font-medium text-orange-700">Pengeluaran</p>
+                    <p class="mt-1 text-sm font-bold text-orange-800">{{ formatCurrency(summary.expense) }}</p>
+                </div>
+                <div class="rounded-2xl border border-teal-100 bg-teal-50 p-3 shadow-sm">
+                    <p class="text-[11px] font-medium text-teal-700">Net</p>
+                    <p class="mt-1 text-sm font-bold text-teal-800">{{ formatCurrency(summary.net) }}</p>
+                </div>
+            </section>
+
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                        v-model="filterForm.search"
+                        type="text"
+                        class="w-full rounded-xl border border-slate-200 bg-white py-3 pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                        placeholder="Cari transaksi"
+                        @keyup.enter="applyFilters"
+                    />
+                </div>
+                <button
+                    type="button"
+                    class="relative flex size-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm"
+                    @click="mobileFilterOpen = true"
+                >
+                    <SlidersHorizontal class="size-5" />
+                    <span v-if="activeFilterCount" class="absolute -right-1 -top-1 rounded-full bg-teal-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{{ activeFilterCount }}</span>
+                    <span class="sr-only">Filter transaksi</span>
+                </button>
             </div>
-            <button
-                type="button"
-                class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-medium text-slate-600"
-                @click="mobileFilterOpen = !mobileFilterOpen"
-            >
-                <Search class="size-3" />
-                Filter
-                <span v-if="activeFilterCount" class="rounded-full bg-teal-600 px-1.5 py-0.5 text-[9px] font-bold text-white">{{ activeFilterCount }}</span>
-            </button>
+
+            <div class="flex gap-2 overflow-x-auto pb-0.5">
+                <button type="button" class="shrink-0 rounded-full px-4 py-2 text-xs font-semibold" :class="filterForm.financialClass === 'all' ? 'bg-teal-600 text-white shadow-sm' : 'bg-white text-slate-600 ring-1 ring-slate-200'" @click="applyTransactionTab('all')">Semua</button>
+                <button type="button" class="shrink-0 rounded-full px-4 py-2 text-xs font-semibold" :class="filterForm.financialClass === 'REVENUE' ? 'bg-teal-600 text-white shadow-sm' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'" @click="applyTransactionTab('REVENUE')">Pemasukan</button>
+                <button type="button" class="shrink-0 rounded-full px-4 py-2 text-xs font-semibold" :class="filterForm.financialClass === 'EXPENSE' ? 'bg-teal-600 text-white shadow-sm' : 'bg-orange-50 text-orange-700 ring-1 ring-orange-100'" @click="applyTransactionTab('EXPENSE')">Pengeluaran</button>
+                <button type="button" class="shrink-0 rounded-full px-4 py-2 text-xs font-semibold" :class="filterForm.financialClass === 'LIABILITY' ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 ring-1 ring-slate-100'" @click="applyTransactionTab('LIABILITY')">Liability</button>
+            </div>
         </div>
 
-        <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-6 md:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <div class="hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-6 md:shadow-[0_18px_40px_rgba(15,23,42,0.08)] lg:block">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">Owner Control</p>
@@ -441,37 +488,50 @@ const deleteTransaction = async () => {
             </div>
         </div>
 
-        <article v-if="mobileFilterOpen" class="rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200/70 lg:hidden">
-            <div class="grid gap-2">
+        <div v-if="mobileFilterOpen" class="fixed inset-0 z-[9999] bg-slate-950/40 lg:hidden" @click="mobileFilterOpen = false">
+            <article class="absolute bottom-0 left-1/2 max-h-[88dvh] w-full max-w-md -translate-x-1/2 overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-5 shadow-2xl sm:px-5" @click.stop>
+                <div class="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-300"></div>
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-950">Filter Transaksi</h2>
+                        <p class="text-xs text-slate-500">Saring data tanpa memenuhi layar utama.</p>
+                    </div>
+                    <button type="button" class="flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600" @click="mobileFilterOpen = false">
+                        <X class="size-4" />
+                        <span class="sr-only">Tutup filter</span>
+                    </button>
+                </div>
+
+                <div class="grid gap-3">
                 <label class="grid gap-1.5">
-                    <span class="text-[10px] font-semibold text-slate-600">Cari</span>
-                    <span class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
-                        <Search class="size-3 text-slate-400" />
-                        <input v-model="filterForm.search" type="text" class="w-full bg-transparent text-[11px] outline-none" placeholder="Tenant, kost, kategori" @keyup.enter="applyFilters" />
+                    <span class="text-xs font-medium text-slate-600">Cari</span>
+                    <span class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+                        <Search class="size-4 text-slate-400" />
+                        <input v-model="filterForm.search" type="text" class="w-full bg-transparent text-sm outline-none" placeholder="Tenant, kost, kategori" @keyup.enter="applyFilters" />
                     </span>
                 </label>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Region</span>
-                        <select v-model="filterForm.regionId" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                        <span class="text-xs font-medium text-slate-600">Region</span>
+                        <select v-model="filterForm.regionId" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                             <option v-for="region in regions" :key="region.id" :value="region.id">{{ region.name }}</option>
                         </select>
                     </label>
 
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Kost</span>
-                        <select v-model="filterForm.kostId" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                        <span class="text-xs font-medium text-slate-600">Kost</span>
+                        <select v-model="filterForm.kostId" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                             <option value="all">Semua Kost</option>
                             <option v-for="kost in filteredKostOptions" :key="kost.id" :value="kost.id">{{ kost.name }}</option>
                         </select>
                     </label>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Jenis</span>
-                        <select v-model="filterForm.financialClass" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                        <span class="text-xs font-medium text-slate-600">Jenis</span>
+                        <select v-model="filterForm.financialClass" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                             <option value="all">Semua</option>
                             <option value="REVENUE">Pemasukan</option>
                             <option value="EXPENSE">Pengeluaran</option>
@@ -480,8 +540,8 @@ const deleteTransaction = async () => {
                     </label>
 
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Per halaman</span>
-                        <select v-model.number="filterForm.pageSize" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+                        <span class="text-xs font-medium text-slate-600">Per halaman</span>
+                        <select v-model.number="filterForm.pageSize" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
                             <option :value="5">5</option>
                             <option :value="10">10</option>
                             <option :value="20">20</option>
@@ -490,23 +550,24 @@ const deleteTransaction = async () => {
                     </label>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Dari</span>
-                        <input v-model="filterForm.dateFrom" type="date" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                        <span class="text-xs font-medium text-slate-600">Dari</span>
+                        <input v-model="filterForm.dateFrom" type="date" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                     </label>
                     <label class="grid gap-1.5">
-                        <span class="text-[10px] font-semibold text-slate-600">Sampai</span>
-                        <input v-model="filterForm.dateTo" type="date" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                        <span class="text-xs font-medium text-slate-600">Sampai</span>
+                        <input v-model="filterForm.dateTo" type="date" class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                     </label>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 pt-0.5">
-                    <Button type="button" variant="outline" class="h-8 rounded-lg px-2 text-[10px]" :disabled="!hasActiveFilters" @click="resetFilters">Reset</Button>
-                    <Button type="button" class="h-8 rounded-lg bg-teal-600 px-2 text-[10px] text-white hover:bg-teal-700" @click="applyFilters">Terapkan</Button>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <Button type="button" variant="outline" class="h-12 rounded-xl text-sm font-semibold" :disabled="!hasActiveFilters" @click="resetFilters">Reset</Button>
+                    <Button type="button" class="h-12 rounded-xl bg-teal-600 text-sm font-semibold text-white hover:bg-teal-700" @click="applyFilters">Terapkan Filter</Button>
                 </div>
-            </div>
-        </article>
+                </div>
+            </article>
+        </div>
 
         <article class="hidden rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 md:rounded-4xl md:p-5 lg:block">
             <div class="flex items-center gap-2 text-slate-950">
@@ -629,26 +690,51 @@ const deleteTransaction = async () => {
                 </table>
             </div>
 
-            <div class="grid gap-2 p-2 lg:hidden">
-                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-                    <div class="flex items-start justify-between gap-2.5">
-                        <div class="min-w-0">
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ formatDate(transaction.date) }}</p>
-                            <h3 class="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
-                            <p class="mt-1 truncate text-[10px] text-slate-500">{{ transaction.kostName || '-' }}</p>
-                            <p class="mt-0.5 truncate text-[10px] text-slate-400">{{ transaction.tenantName || transaction.category || 'Tidak terkait tenant' }}</p>
+            <div class="grid gap-3 bg-slate-50 p-1 lg:hidden">
+                <article v-for="transaction in transactions" :key="'m-' + transaction.id" class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm active:scale-[0.99]">
+                    <button type="button" class="w-full text-left" @click="openDetail(transaction)">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-xs text-slate-400">{{ formatDate(transaction.date) }}</p>
+                                <h3 class="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-slate-950">{{ transaction.description || 'Tanpa deskripsi' }}</h3>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <span class="inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ring-1" :class="financialClassTone(transaction.financialClass)">
+                                    {{ financialClassLabel(transaction.financialClass) }}
+                                </span>
+                                <p class="mt-2 text-sm font-bold" :class="transaction.financialClass === 'EXPENSE' ? 'text-orange-600' : 'text-emerald-600'">
+                                    {{ formatCurrency(transaction.signedAmount) }}
+                                </p>
+                            </div>
                         </div>
-                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold ring-1" :class="financialClassTone(transaction.financialClass)">
-                            {{ financialClassLabel(transaction.financialClass) }}
-                        </span>
-                    </div>
-                    <p class="mt-2 text-base font-extrabold tracking-tight" :class="transaction.financialClass === 'EXPENSE' ? 'text-amber-700' : 'text-emerald-700'">
-                        {{ formatCurrency(transaction.signedAmount) }}
-                    </p>
-                    <div class="mt-2 grid grid-cols-3 gap-1.5">
-                        <Button type="button" variant="outline" class="h-8 rounded-lg px-1.5 text-[10px]" @click="openDetail(transaction)">Detail</Button>
-                        <Button type="button" class="h-8 rounded-lg bg-teal-600 px-1.5 text-[10px] text-white hover:bg-teal-700" @click="openEdit(transaction)">Edit</Button>
-                        <Button type="button" class="h-8 rounded-lg bg-rose-600 px-1.5 text-[10px] text-white hover:bg-rose-700" @click="openDelete(transaction)">Hapus</Button>
+
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                            <div class="flex min-w-0 items-center gap-1.5">
+                                <Home class="size-3 shrink-0" />
+                                <span class="truncate">{{ transaction.kostName || transaction.regionName || '-' }}</span>
+                            </div>
+                            <div class="flex min-w-0 items-center gap-1.5">
+                                <User class="size-3 shrink-0" />
+                                <span class="truncate">{{ transaction.tenantName || transaction.category || 'Tidak terkait tenant' }}</span>
+                            </div>
+                        </div>
+                    </button>
+
+                    <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <button type="button" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700" @click="openDetail(transaction)">
+                            Detail
+                            <ChevronRight class="size-3" />
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="inline-flex size-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100" @click="openEdit(transaction)">
+                                <Pencil class="size-3.5" />
+                                <span class="sr-only">Edit</span>
+                            </button>
+                            <button type="button" class="inline-flex size-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-100" @click="openDelete(transaction)">
+                                <Trash2 class="size-3.5" />
+                                <span class="sr-only">Hapus</span>
+                            </button>
+                        </div>
                     </div>
                 </article>
             </div>
