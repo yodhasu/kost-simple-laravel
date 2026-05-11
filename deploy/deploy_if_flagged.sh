@@ -108,7 +108,16 @@ rm -rf "$PUBLIC_PATH/build" "$PUBLIC_PATH/storage"
 cp -R "$APP_PATH/public/." "$PUBLIC_PATH"
 ln -sfn "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
 
-PUBLIC_PATH="$PUBLIC_PATH" "$PHP_BIN" -r '$file = getenv("PUBLIC_PATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__." . "\047/../vendor/autoload.php\047", "__DIR__." . "\047/../kost-simple-laravel/vendor/autoload.php\047", $contents); $contents = str_replace("__DIR__." . "\047/../bootstrap/app.php\047", "__DIR__." . "\047/../kost-simple-laravel/bootstrap/app.php\047", $contents); file_put_contents($file, $contents);'
+INDEX_FILE="$PUBLIC_PATH/index.php"
+if [ -f "$INDEX_FILE" ]; then
+  sed -i \
+    -e "s#__DIR__\.'/../vendor/autoload.php'#__DIR__.'/../kost-simple-laravel/vendor/autoload.php'#g" \
+    -e "s#__DIR__\.'/../bootstrap/app.php'#__DIR__.'/../kost-simple-laravel/bootstrap/app.php'#g" \
+    "$INDEX_FILE"
+else
+  log "Missing public index.php at $INDEX_FILE"
+  exit 1
+fi
 
 if [ "$RUN_MIGRATIONS" = "1" ]; then
   "$PHP_BIN" artisan migrate --force
