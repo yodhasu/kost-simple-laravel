@@ -30,3 +30,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Production-only deploy secrets/config
+/deploy/deploy.env
