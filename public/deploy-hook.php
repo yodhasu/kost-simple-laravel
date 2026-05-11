@@ -4,7 +4,7 @@
 
 declare(strict_types=1);
 
-$appPath = '/home/tbkd2629/kost-app';
+$appPath = '/home/tbkd2629/kost-simple-laravel';
 $tokenFile = $appPath . '/storage/app/deploy-webhook-token';
 $flagFile = $appPath . '/storage/app/deploy.flag';
 $logFile = $appPath . '/storage/logs/deploy-hook.log';

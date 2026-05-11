@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APP_PATH_DEFAULT="/home/tbkd2629/kost-app"
+APP_PATH_DEFAULT="/home/tbkd2629/kost-simple-laravel"
 CONFIG_FILE="${DEPLOY_CONFIG:-$APP_PATH_DEFAULT/deploy/deploy.env}"
 
 log() {
@@ -108,7 +108,7 @@ rm -rf "$PUBLIC_PATH/build" "$PUBLIC_PATH/storage"
 cp -R "$APP_PATH/public/." "$PUBLIC_PATH"
 ln -sfn "$APP_PATH/storage/app/public" "$PUBLIC_PATH/storage"
 
-PUBLIC_PATH="$PUBLIC_PATH" "$PHP_BIN" -r '$file = getenv("PUBLIC_PATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__." . "\047/../vendor/autoload.php\047", "__DIR__." . "\047/../kost-app/vendor/autoload.php\047", $contents); $contents = str_replace("__DIR__." . "\047/../bootstrap/app.php\047", "__DIR__." . "\047/../kost-app/bootstrap/app.php\047", $contents); file_put_contents($file, $contents);'
+PUBLIC_PATH="$PUBLIC_PATH" "$PHP_BIN" -r '$file = getenv("PUBLIC_PATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__." . "\047/../vendor/autoload.php\047", "__DIR__." . "\047/../kost-simple-laravel/vendor/autoload.php\047", $contents); $contents = str_replace("__DIR__." . "\047/../bootstrap/app.php\047", "__DIR__." . "\047/../kost-simple-laravel/bootstrap/app.php\047", $contents); file_put_contents($file, $contents);'
 
 if [ "$RUN_MIGRATIONS" = "1" ]; then
   "$PHP_BIN" artisan migrate --force

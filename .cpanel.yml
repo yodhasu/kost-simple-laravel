@@ -1,7 +1,7 @@
 ---
 deployment:
   tasks:
-    - export APPPATH=/home/tbkd2629/kost-app
+    - export APPPATH=/home/tbkd2629/kost-simple-laravel
     - export PUBLICPATH=/home/tbkd2629/public_html
     - /bin/mkdir -p "$APPPATH"
     - /bin/mkdir -p "$PUBLICPATH"
@@ -21,5 +21,5 @@ deployment:
     - /bin/rm -rf "$PUBLICPATH/build" "$PUBLICPATH/storage"
     - /bin/cp -R "$APPPATH/public/." "$PUBLICPATH"
     - /bin/ln -sfn "$APPPATH/storage/app/public" "$PUBLICPATH/storage"
-    - /bin/bash -lc 'php -r '\''$file = getenv("PUBLICPATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__.'\''/../vendor/autoload.php'\''", "__DIR__.'\''/../kost-app/vendor/autoload.php'\''", $contents); $contents = str_replace("__DIR__.'\''/../bootstrap/app.php'\''", "__DIR__.'\''/../kost-app/bootstrap/app.php'\''", $contents); file_put_contents($file, $contents);'\'''
+    - /bin/bash -lc 'php -r '\''$file = getenv("PUBLICPATH") . "/index.php"; $contents = file_get_contents($file); $contents = str_replace("__DIR__.'\''/../vendor/autoload.php'\''", "__DIR__.'\''/../kost-simple-laravel/vendor/autoload.php'\''", $contents); $contents = str_replace("__DIR__.'\''/../bootstrap/app.php'\''", "__DIR__.'\''/../kost-simple-laravel/bootstrap/app.php'\''", $contents); file_put_contents($file, $contents);'\'''
     - /bin/bash -lc 'cd "$APPPATH" && php artisan migrate --force && php artisan optimize:clear && php artisan optimize'
