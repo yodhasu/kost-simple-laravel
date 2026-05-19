@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\IncomeController;
 use App\Http\Controllers\Api\KostController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\TenantController;
@@ -17,6 +18,7 @@ Route::middleware(['web', 'auth', 'verified'])->group(function () {
 
     Route::post('payments', [PaymentController::class, 'store'])->name('api.payments.store');
     Route::post('expenses', [ExpenseController::class, 'store'])->name('api.expenses.store');
+    Route::post('incomes', [IncomeController::class, 'store'])->name('api.incomes.store');
 
     Route::middleware('role.owner_or_it')->group(function () {
         Route::post('kosts', [KostController::class, 'store'])->name('api.kosts.store');

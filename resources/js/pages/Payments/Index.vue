@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next';
 import BaseModal from '@/components/BaseModal.vue';
 import ExpenseFormModal from '@/components/payments/ExpenseFormModal.vue';
+import IncomeFormModal from '@/components/payments/IncomeFormModal.vue';
 import KostFormModal from '@/components/kosts/KostFormModal.vue';
 import PaymentUpdateModal, { type PaymentTenantOption } from '@/components/payments/PaymentUpdateModal.vue';
 import TenantFormModal, { type TenantFormKostOption } from '@/components/tenants/TenantFormModal.vue';
@@ -44,6 +45,7 @@ const props = defineProps<{
 }>();
 
 const iconMap = {
+    'arrow-up-right': ArrowUpRight,
     'user-plus': UserPlus,
     wallet: Wallet,
     receipt: Receipt,
@@ -53,6 +55,10 @@ const iconMap = {
 };
 
 const actionToneMap = {
+    'arrow-up-right': {
+        chip: 'bg-teal-100 text-teal-700 ring-teal-200',
+        button: 'bg-teal-600 text-white hover:bg-teal-700',
+    },
     'user-plus': {
         chip: 'bg-sky-100 text-sky-700 ring-sky-200',
         button: 'bg-sky-600 text-white hover:bg-sky-700',
@@ -92,6 +98,7 @@ const isAdmin = computed(() => props.viewer.role === 'admin');
 const modalTitleMap = {
     'Tambah Penyewa': 'Tambah penyewa baru',
     'Update Pembayaran': 'Catat pembayaran',
+    'Tambah Pemasukan': 'Tambah pemasukan operasional',
     'Tambah Pengeluaran': 'Tambah pengeluaran operasional',
     'Tambah Kost': 'Tambah properti kost',
     'Daftar Kost': 'Daftar properti kost',
@@ -101,6 +108,7 @@ const modalTitleMap = {
 const modalDescriptionMap = {
     'Tambah Penyewa': 'Frontend modal dulu untuk alur tambah penyewa. Nanti field ini tinggal disambungkan ke endpoint Laravel.',
     'Update Pembayaran': 'Form pembayaran dibuat dulu di sisi UI agar alurnya siap saat backend transaksi masuk.',
+    'Tambah Pemasukan': 'Catat pemasukan non-sewa seperti reimbursement, denda, atau service fee dari modal yang ringkas.',
     'Tambah Pengeluaran': 'Catat biaya operasional, utilitas, atau pengeluaran lain dari satu modal yang ringkas.',
     'Tambah Kost': 'Gunakan modal ini untuk input region, nama kost, alamat, dan jumlah unit.',
     'Daftar Kost': 'Pilih kost untuk melihat atau mengedit detail properti.',
@@ -156,6 +164,7 @@ const modalDescription = computed(() => {
 
 const isTenantAction = computed(() => selectedAction.value?.title === 'Tambah Penyewa');
 const isPaymentAction = computed(() => selectedAction.value?.title === 'Update Pembayaran');
+const isIncomeAction = computed(() => selectedAction.value?.title === 'Tambah Pemasukan');
 const isExpenseAction = computed(() => selectedAction.value?.title === 'Tambah Pengeluaran');
 const isAddKostAction = computed(() => selectedAction.value?.title === 'Tambah Kost');
 const isListKostAction = computed(() => selectedAction.value?.title === 'Daftar Kost');
@@ -249,6 +258,36 @@ const handleExpenseSave = async (payload: {
     }
 };
 
+const handleIncomeSave = async (payload: {
+    tingkat: 'region' | 'kost';
+    region_id: string;
+    kost_id: string;
+    category: string;
+    description: string;
+    amount: number;
+    transaction_date: string;
+}) => {
+    actionError.value = '';
+
+    try {
+        await apiRequest('/api/incomes', {
+            method: 'POST',
+            body: {
+                region_id: payload.region_id || null,
+                kost_id: payload.tingkat === 'kost' ? payload.kost_id : null,
+                category: payload.category,
+                description: payload.description || null,
+                amount: payload.amount,
+                transaction_date: payload.transaction_date,
+            },
+        });
+        closeActionModal();
+        refreshPaymentsPage();
+    } catch (error) {
+        actionError.value = error instanceof ApiError ? error.message : 'Gagal menyimpan pemasukan.';
+    }
+};
+
 const handleKostSave = async (payload: {
     region_id: string;
     name: string;
@@ -318,7 +357,7 @@ const handleKostDelete = async () => {
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">Quick Actions</p>
             <h2 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">Aksi operasional yang paling sering dipakai</h2>
             <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Gunakan halaman ini untuk menambah penyewa, mencatat pembayaran, memasukkan pengeluaran, dan mengelola data kost.
+                Gunakan halaman ini untuk menambah penyewa, mencatat pembayaran, memasukkan pemasukan maupun pengeluaran, dan mengelola data kost.
                 Semua aksi penting operasional harian dikumpulkan di satu tempat agar proses input lebih cepat.
             </p>
         </div>
@@ -409,6 +448,16 @@ const handleKostDelete = async () => {
             :tenants="props.paymentTenants"
             @update:open="actionModalOpen = $event"
             @save="handlePaymentSave"
+        />
+
+        <IncomeFormModal
+            v-else-if="isIncomeAction"
+            :open="actionModalOpen"
+            :viewer="viewer"
+            :regions="regions"
+            :kost-options="kostOptions"
+            @update:open="actionModalOpen = $event"
+            @save="handleIncomeSave"
         />
 
         <ExpenseFormModal

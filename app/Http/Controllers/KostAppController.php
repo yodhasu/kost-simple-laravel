@@ -125,6 +125,7 @@ class KostAppController extends Controller
             'quickActions' => [
                 ['title' => 'Tambah Penyewa', 'description' => 'Buat data penyewa baru dan tetapkan kamar.', 'icon' => 'user-plus'],
                 ['title' => 'Update Pembayaran', 'description' => 'Catat pembayaran bulanan, tunggakan, atau DP.', 'icon' => 'wallet'],
+                ['title' => 'Tambah Pemasukan', 'description' => 'Input pemasukan non-sewa seperti reimbursement, service, atau denda.', 'icon' => 'arrow-up-right'],
                 ['title' => 'Tambah Pengeluaran', 'description' => 'Input biaya operasional, perbaikan, dan utilitas.', 'icon' => 'receipt'],
                 ['title' => 'Tambah Kost', 'description' => 'Tambahkan properti atau unit baru ke sistem.', 'icon' => 'house-plus'],
                 ['title' => 'Daftar Kost', 'description' => 'Lihat dan kelola data properti kost Anda.', 'icon' => 'square-pen'],

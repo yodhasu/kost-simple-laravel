@@ -181,6 +181,41 @@ class TransactionsService
         ]);
     }
 
+    public function createIncome(array $data): Transaction
+    {
+        if (empty($data['kost_id']) && empty($data['region_id'])) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Either kost_id or region_id must be provided',
+            ], Response::HTTP_BAD_REQUEST));
+        }
+
+        $regionId = $data['region_id'] ?? null;
+
+        if (! empty($data['kost_id'])) {
+            $kost = Kost::query()->find($data['kost_id']);
+
+            if (! $kost) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Kost not found',
+                ], Response::HTTP_NOT_FOUND));
+            }
+
+            $regionId = $kost->region_id;
+        }
+
+        return Transaction::query()->create([
+            'kost_id' => $data['kost_id'] ?? null,
+            'tenant_id' => null,
+            'financial_class' => 'REVENUE',
+            'category' => $data['category'],
+            'amount' => $data['amount'],
+            'transaction_date' => $data['transaction_date'],
+            'description' => $data['description'] ?? null,
+            'region_id' => $regionId,
+            'is_frozen' => false,
+        ]);
+    }
+
     public function updateManualControl(Transaction $transaction, array $data): Transaction
     {
         $kostId = $data['kost_id'] ?? null;
